@@ -34,12 +34,14 @@ export type GameTimers = {
 /**
  * Delivered privately to each player at game start with their word and role.
  * Mirrors Go's ImpostorClientGameStatePayload.
+ * Timer data is not included here — it arrives in the immediately-following
+ * ImpostorPhaseUpdate (new_game_phase) event, which is the single source of
+ * truth for all phase timers.
  */
 export type ImpostorClientGameState = {
-  timers: GameTimers;
   role: ImpostorRole;
   word: string;
-  /** Set of currently active (non-eliminated) players, keyed by UUID. */
+  /** Initial set of active players at game start. Updates arrive via impostor_new_cycle. */
   active_players: Record<string, boolean>;
 };
 

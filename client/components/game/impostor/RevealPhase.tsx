@@ -4,26 +4,13 @@ import PhaseTransition from "../PhaseTransition";
 import { HatGlasses, Users } from "lucide-react";
 import { useImpostorGame } from "@/hooks/gamecontext";
 import { cn } from "@/lib/utils";
-import { ImpostorClientGameState } from "@/lib/game/impostor-types";
-
-// --- Fake data toggles ---
-const isImpostor = false;
-
-// --- Fake round state ---
-const fakeRoundState: ImpostorClientGameState = {
-  timers: { start_time: Date.now(), ready_time: Date.now(), end_time: Date.now() + 10_000 },
-  role: isImpostor ? "impostor" : "normal",
-  word: "Sommarsemester",
-  active_players: { "user-1": true, "user-2": true, "user-3": true, "user-4": false },
-};
 
 export function RevealPhase() {
-  // const game = useImpostorGame();
-  // if (!game || !game.roundState) return null;
+  const game = useImpostorGame();
+  if (!game || !game.roundState) return null;
 
-  // const isImpostor = game.roundState.role === "impostor";
-  const roundState = fakeRoundState;
-  // const roundState = game.roundState;
+  const isImpostor = game.roundState.role === "impostor";
+  const roundState = game.roundState;
 
   return (
     <PhaseTransition phaseKey="reveal">

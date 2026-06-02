@@ -10,39 +10,34 @@ import { useState } from "react";
 import { ToastError } from "@/lib/toast-functions";
 import { useUserContext } from "@/hooks/usercontext";
 import { useLobbyContext } from "@/hooks/lobbycontext";
-import { fakeUsers, isImpostor, isCurrentPlayer, MY_ID, fakeRoundState, fakePhaseState } from "@/lib/fakedata";
 import { Send } from "lucide-react";
 
 export function InputPhase() {
-  // const { sendEvent } = useWebsocketContext();
-  // const game = useImpostorGame();
-  // const { user } = useUserContext();
-  // const { users } = useLobbyContext();
+  const { sendEvent } = useWebsocketContext();
+  const game = useImpostorGame();
+  const { user } = useUserContext();
+  const { users } = useLobbyContext();
   const [wordSubmission, setWordSubmission] = useState<string>("");
 
-  // if (!game || !game.roundState || !game.phaseState || !user || !users) return null;
+  if (!game || !game.roundState || !game.phaseState || !game.activePlayers || !user || !users) return null;
 
-  // const isImpostor = game.roundState.role === "impostor";
+  const isImpostor = game.roundState.role === "impostor";
 
   const sendWordSubmission = () => {
-    // if (game.phaseState?.current_player !== user.user_id) {
-    //   ToastError("Det är inte din tur!");
-    //   return;
-    // }
-    // if (isStringEmptyOrOnlySpaces(wordSubmission) || wordSubmission.length > 128) {
-    //   ToastError("Skriv in ett ord");
-    //   return;
-    // }
-    // sendEvent("game_submit_word", { word: wordSubmission });
+    if (game.phaseState?.current_player !== user.user_id) {
+      ToastError("Det är inte din tur!");
+      return;
+    }
+    if (isStringEmptyOrOnlySpaces(wordSubmission) || wordSubmission.length > 128) {
+      ToastError("Skriv in ett ord");
+      return;
+    }
+    sendEvent("game_submit_word", { word: wordSubmission });
   };
 
-  const submittedWords = fakePhaseState.words_cycle;
-  const activePlayers = fakeRoundState.active_players;
-  const users = fakeUsers;
-
-  // const submittedWords = game.phaseState.words_cycle;
-  // const activePlayers = game.roundState.active_players;
-  // const isCurrentPlayer = game.phaseState.current_player === user.user_id;
+  const submittedWords = game.phaseState.words_cycle;
+  const activePlayers = game.activePlayers;
+  const isCurrentPlayer = game.phaseState.current_player === user.user_id;
 
   return (
     <PhaseTransition phaseKey="input">
@@ -59,7 +54,8 @@ export function InputPhase() {
                   value={wordSubmission}
                   onChange={(e) => setWordSubmission(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key == "enter") {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
                       sendWordSubmission();
                     }
                   }}

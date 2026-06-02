@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-// import { useImpostorGame } from "@/hooks/gamecontext";
+import { useImpostorGame } from "@/hooks/gamecontext";
 
 const barColorMap = {
   green: "heat-hot",
@@ -10,19 +10,12 @@ const barColorMap = {
   red: "heat-cold",
 };
 
-// --- Fake data ---
-const FAKE_DURATION_S = 15;
-
 const CountdownBar = () => {
-  // const game = useImpostorGame();
-  // if (!game || !game.roundState || !game.phaseState) return null;
-  // const timers = game.phaseState.timers;
-  // const endTime = timers.end_time;
-  // const totalDurationMs = timers.end_time - timers.ready_time;
+  const game = useImpostorGame();
 
-  // Initialized inside the component so Date.now() is captured at mount, not module load.
-  const [endTime] = useState(() => Date.now() + FAKE_DURATION_S * 1_000);
-  const totalDurationMs = FAKE_DURATION_S * 1_000;
+  // Derive timer values before hooks so they're stable on every render path.
+  const endTime = game?.phaseState?.timers.end_time ?? 0;
+  const totalDurationMs = game?.phaseState ? game.phaseState.timers.end_time - game.phaseState.timers.ready_time : 0;
 
   const [timeLeft, setTimeLeft] = useState(() => Math.max(0, endTime - Date.now()));
 
@@ -37,6 +30,8 @@ const CountdownBar = () => {
 
     return () => clearInterval(timer);
   }, [endTime]);
+
+  if (!game || !game.phaseState) return null;
 
   const totalSeconds = Math.floor(timeLeft / 1000);
   const minutes = Math.floor(totalSeconds / 60);
