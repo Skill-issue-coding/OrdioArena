@@ -31,7 +31,7 @@ const ChatButton = () => {
   const [readCount, setReadCount] = useState(0);
   const unreadBelow = Math.max(0, chatMessages.length - readCount);
 
-  const visible = location.startsWith("/lobby") && code && phase !== "game_started";
+  const visible = location.startsWith("/lobby") && code && phase !== "game_started" && !location.endsWith("/game");
   const unread = Math.max(0, chatMessages.length - lastReadIndex);
 
   // Keep badge count (closed state) in sync and reset it when popover opens.
@@ -119,7 +119,11 @@ const ChatButton = () => {
                     {m.sender.username.charAt(0).toUpperCase()}
                   </div>
                   <div className={cn("max-w-[75%] flex flex-col min-w-0", self ? "items-end" : "items-start")}>
-                    <div className={cn("px-3 py-2 rounded-2xl border-2 font-display font-semibold text-sm w-fit max-w-full wrap-break-word whitespace-pre-wrap", self ? "bg-primary text-primary-foreground border-primary rounded-br-md" : "bg-muted border-border text-foreground rounded-bl-md")}>
+                    <div
+                      className={cn(
+                        "px-3 py-2 rounded-2xl border-2 font-display font-semibold text-sm w-fit max-w-full wrap-break-word whitespace-pre-wrap",
+                        self ? "bg-primary text-primary-foreground border-primary rounded-br-md" : "bg-muted border-border text-foreground rounded-bl-md",
+                      )}>
                       {m.message}
                     </div>
                     <div className="text-[10px] font-display font-bold text-muted-foreground px-1 mt-1">
@@ -132,7 +136,9 @@ const ChatButton = () => {
           </div>
 
           {!isAtBottom && unreadBelow > 0 && (
-            <button onClick={scrollToBottom} className="absolute bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-display font-bold shadow-lg border-2 border-primary/50 transition-opacity">
+            <button
+              onClick={scrollToBottom}
+              className="absolute bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-display font-bold shadow-lg border-2 border-primary/50 transition-opacity">
               <ChevronDown className="w-3 h-3" />
               {unreadBelow} nya meddelanden
             </button>

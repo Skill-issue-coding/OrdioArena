@@ -11,9 +11,11 @@ import { useTheme } from "next-themes";
 import { motion } from "framer-motion";
 import { useUserContext } from "@/hooks/usercontext";
 import { popIn } from "@/lib/animation-util";
+import { useLobbyContext } from "@/hooks/lobbycontext";
 
 export default function UserProfileButton() {
   const { user, updateUser } = useUserContext();
+  const { phase } = useLobbyContext();
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [draftName, setDraftName] = useState("");
@@ -46,6 +48,9 @@ export default function UserProfileButton() {
 
   const displayName = user?.username ?? "?";
   const displayColor = user?.background ?? BACKGROUND_COLOR_PALETTE[0];
+  const visible = phase !== "game_started" && !location.pathname.endsWith("/game");
+
+  if (!visible) return null;
 
   return (
     <>

@@ -1,36 +1,33 @@
 "use client";
 
-// import { useRouter } from "next/navigation";
-// import { useEffect } from "react";
-// import { useLobbyContext } from "@/hooks/lobbycontext";
-import { GameMode } from "@/lib/game/types";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useLobbyContext } from "@/hooks/lobbycontext";
+import { useGameContext } from "@/hooks/gamecontext";
 
 import { ContextoGameView } from "./gamemodes/ContextoGameView";
 import { SynonymDuelView } from "./gamemodes/SynonymDuelView";
 import { AntiMatchView } from "./gamemodes/AntiMatchView";
 import { MainImpostorView } from "./gamemodes/MainImposterView";
 
-// --- Fake data toggle ---
-const FAKE_MODE: GameMode = "impostor";
-
 export function GameView() {
-  // const { mode } = useLobbyContext();
-  // const router = useRouter();
+  const { mode } = useLobbyContext();
+  const { gameState } = useGameContext();
+  const router = useRouter();
+  const activeMode = mode ?? gameState?.mode ?? null;
 
-  // useEffect(() => {
-  //   if (!mode) router.push("/");
-  // }, [mode, router]);
+  useEffect(() => {
+    if (!activeMode) router.push("/");
+  }, [activeMode, router]);
 
-  // if (!mode) return null;
-
-  const mode = FAKE_MODE;
+  if (!activeMode) return null;
 
   return (
     <div className="w-full px-8 pt-5">
-      {mode === "impostor" && <MainImpostorView />}
-      {mode === "contexto_battle" && <ContextoGameView />}
-      {mode === "synonym_duel" && <SynonymDuelView />}
-      {mode === "anti_match" && <AntiMatchView />}
+      {activeMode === "impostor" && <MainImpostorView />}
+      {activeMode === "contexto_battle" && <ContextoGameView />}
+      {activeMode === "synonym_duel" && <SynonymDuelView />}
+      {activeMode === "anti_match" && <AntiMatchView />}
     </div>
   );
 }

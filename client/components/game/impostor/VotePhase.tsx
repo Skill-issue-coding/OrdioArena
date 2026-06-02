@@ -2,30 +2,16 @@
 
 import PhaseTransition from "@/components/game/PhaseTransition";
 import { cn, deriveTally } from "@/lib/utils";
-// import { useUserContext } from "@/hooks/usercontext";
-// import { useWebsocketContext } from "@/hooks/websocketcontext";
-// import { useImpostorGame } from "@/hooks/gamecontext";
-// import { useLobbyContext } from "@/hooks/lobbycontext";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fakeUsers, fakeRoundState, MY_ID, isCurrentUserActive } from "@/lib/fakedata";
-
-// --- Fake vote simulation ---
-const VOTE_SCRIPT: { t: number; voter: string; target: string | null }[] = [
-  { t: 700, voter: "user-2", target: "user-3" },
-  { t: 1500, voter: "user-6", target: "user-3" },
-  { t: 2300, voter: "user-7", target: null },
-  { t: 3100, voter: "user-5", target: "user-3" },
-  { t: 3900, voter: "user-11", target: "user-5" },
-  { t: 4700, voter: "user-9", target: "user-3" },
-  { t: 5500, voter: "user-3", target: "user-5" },
-  { t: 6300, voter: "user-10", target: "user-3" },
-];
+import { useUserContext } from "@/hooks/usercontext";
+import { useWebsocketContext } from "@/hooks/websocketcontext";
+import { useImpostorGame } from "@/hooks/gamecontext";
+import { useLobbyContext } from "@/hooks/lobbycontext";
+import { useMemo, useState } from "react";
+import { User } from "@/lib/game/types";
 
 const AVATAR_CAP = 5;
 
-type Votes = Record<string, string | null>;
-
-function VoterStrip({ voters, emptyLabel, center }: { voters: string[]; emptyLabel?: string; center?: boolean }) {
+function VoterStrip({ voters, users, emptyLabel, center }: { voters: string[]; users: Record<string, User>; emptyLabel?: string; center?: boolean }) {
   const shown = voters.slice(0, AVATAR_CAP);
   const extra = voters.length - shown.length;
 
@@ -38,7 +24,7 @@ function VoterStrip({ voters, emptyLabel, center }: { voters: string[]; emptyLab
       ) : (
         <>
           {shown.map((voterId) => {
-            const voter = fakeUsers[voterId];
+            const voter = users[voterId];
             return (
               <span key={voterId} title={voter?.username} className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-display font-bold text-white border border-card" style={{ backgroundColor: voter?.background }}>
                 {voter?.username[0]}
@@ -53,42 +39,31 @@ function VoterStrip({ voters, emptyLabel, center }: { voters: string[]; emptyLab
 }
 
 export function VotePhase() {
-  // const { user } = useUserContext();
-  // const { users } = useLobbyContext();
-  // const { sendEvent } = useWebsocketContext();
-  // const game = useImpostorGame();
-  // if (!game || !game.phaseState || !game.roundState || !users || !user) return null;
+  const { user } = useUserContext();
+  const { users } = useLobbyContext();
+  const { sendEvent } = useWebsocketContext();
+  const game = useImpostorGame();
 
-  const users = fakeUsers;
-  const activePlayers = fakeRoundState.active_players;
-
-  const [submittedVotes, setSubmittedVotes] = useState<Votes>({});
+  // Optimistic local vote — immediately reflects the user's click before the
+  // server echoes it back via impostor_vote_update.
   const [myVote, setMyVote] = useState<string | null | undefined>(undefined);
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  const runSimulation = useCallback(() => {
-    timers.current.forEach(clearTimeout);
-    timers.current = [];
-    setSubmittedVotes({});
-    VOTE_SCRIPT.forEach(({ t: at, voter, target }) => {
-      timers.current.push(setTimeout(() => setSubmittedVotes((prev) => ({ ...prev, [voter]: target })), at));
-    });
-  }, []);
+  const serverVotes = game?.phaseState?.votes_cycle_votes ?? {};
+  const allVotes = useMemo(() => ({ ...serverVotes, ...(myVote !== undefined && user ? { [user.user_id]: myVote } : {}) }), [serverVotes, myVote, user]);
 
-  useEffect(() => {
-    runSimulation();
-    return () => timers.current.forEach(clearTimeout);
-  }, [runSimulation]);
+  const { votersByTarget, skipVoters, counts, skipCount, maxVotes, leader } = useMemo(() => deriveTally(allVotes), [allVotes]);
+
+  if (!game || !game.phaseState || !game.activePlayers || !users || !user) return null;
+
+  const activePlayers = game.activePlayers;
+  const myId = user.user_id;
+  const isCurrentUserActive = activePlayers[myId] ?? false;
 
   const handleVote = (target: string | null) => {
     if (target === myVote || !isCurrentUserActive) return;
-    // sendEvent("game_submit_vote", { target: target });
+    sendEvent("game_submit_vote", { target });
     setMyVote(target);
   };
-
-  const allVotes = useMemo(() => ({ ...submittedVotes, ...(myVote !== undefined ? { [MY_ID]: myVote } : {}) }), [submittedVotes, myVote]);
-
-  const { votersByTarget, skipVoters, counts, skipCount, maxVotes, leader } = useMemo(() => deriveTally(allVotes), [allVotes]);
 
   const denom = Math.max(maxVotes, skipCount, 1);
 
@@ -106,7 +81,7 @@ export function VotePhase() {
           {Object.entries(users).map(([playerId, player]) => {
             const isActive = activePlayers[playerId] ?? false;
             const isSelected = myVote === playerId;
-            const isCurrentUser = playerId === MY_ID;
+            const isCurrentUser = playerId === myId;
             const voters = votersByTarget[playerId] ?? [];
             const isLeading = leader === playerId;
             const share = Math.round(((counts[playerId] ?? 0) / denom) * 100);
@@ -128,7 +103,7 @@ export function VotePhase() {
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate font-display text-foreground">{player.username}</p>
-                  {!isActive ? <p className="text-xs font-display text-muted-foreground">Eliminerad</p> : <VoterStrip voters={voters} emptyLabel="Inga röster än" />}
+                  {!isActive ? <p className="text-xs font-display text-muted-foreground">Eliminerad</p> : <VoterStrip voters={voters} users={users} emptyLabel="Inga röster än" />}
                 </div>
                 {isActive && (
                   <div className="flex flex-col items-center text-center shrink-0 min-w-8">
@@ -152,7 +127,7 @@ export function VotePhase() {
           )}>
           <div className="flex-1 min-w-0 space-y-1">
             <p className="text-sm font-semibold font-display text-foreground">Skippa röst</p>
-            <VoterStrip voters={skipVoters} emptyLabel="Inga röster än" center />
+            <VoterStrip voters={skipVoters} users={users} emptyLabel="Inga röster än" center />
           </div>
           <div className="flex flex-col items-center text-center shrink-0 min-w-8">
             <span className={cn("text-xl font-bold font-display tabular-nums leading-none", skipVoters.length === 0 ? "text-muted-foreground/40" : "text-foreground")}>{skipVoters.length}</span>

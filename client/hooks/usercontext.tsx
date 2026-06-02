@@ -89,7 +89,7 @@ const SaveLocalStorageProfile = (profile: LocalStorageProfile) => {
  * ```
  */
 export async function GetNewUsername(userId: string): Promise<string> {
-  const url = process.env.NEXT_PUBLIC_WS_PATH ? `${process.env.NEXT_PUBLIC_BACKEND_PATH}/game/username` : `http://localhost:8080/game/username`;
+  const url = process.env.NEXT_PUBLIC_BACKEND_PATH ? `${process.env.NEXT_PUBLIC_BACKEND_PATH}/game/username` : `http://localhost:8080/game/username`;
   const { data, error } = await tryCatch(
     axios.post<{ username: string; error?: string }>(url, {
       user_id: userId,

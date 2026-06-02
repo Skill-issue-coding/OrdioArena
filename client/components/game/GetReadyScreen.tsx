@@ -1,32 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
 
 interface GetReadyScreenProps {
   remainingMs: number;
 }
 
-// --- Fake data ---
-const FAKE_REMAINING_MS = 2_500;
-
-export function GetReadyScreen({ remainingMs: _remainingMs }: GetReadyScreenProps) {
-  const [fakeMs, setFakeMs] = useState(FAKE_REMAINING_MS);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setFakeMs((prev) => {
-        const next = Math.max(0, prev - 50);
-        if (next === 0) clearInterval(interval);
-        return next;
-      });
-    }, 50);
-    return () => clearInterval(interval);
-  }, []);
-
-  // const remainingMs = _remainingMs; // restore this and remove fakeMs to use real data
-  const remainingMs = fakeMs;
-
+export function GetReadyScreen({ remainingMs }: GetReadyScreenProps) {
   const seconds = Math.floor(remainingMs / 1000);
   const ms = Math.floor((remainingMs % 1000) / 10);
 

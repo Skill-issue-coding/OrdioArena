@@ -83,7 +83,9 @@ export default function LobbyView({ code }: { code: string }) {
             </Link>
           </div>
 
-          <h1 className="text-4xl font-bold font-display text-game-purple max-[565px]:whitespace-break-spaces max-[565px]:text-center max-[565px]:text-2xl max-[565px]:px-2 whitespace-nowrap">{hostName?.slice(-1) === "s" ? `${hostName} rum` : `${hostName}s rum`}</h1>
+          <h1 className="text-4xl font-bold font-display text-game-purple max-[565px]:whitespace-break-spaces max-[565px]:text-center max-[565px]:text-2xl max-[565px]:px-2 whitespace-nowrap">
+            {hostName?.slice(-1) === "s" ? `${hostName} rum` : `${hostName}s rum`}
+          </h1>
           <div className="flex-1" />
         </motion.div>
         <div>

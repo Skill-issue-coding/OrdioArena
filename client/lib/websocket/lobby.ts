@@ -61,4 +61,7 @@ export type LobbyWSSendPayloadMap = {
 
   /** Host-only: start the game. */
   start_game: null;
+
+  /** Ask the server to broadcast the current lobby state. */
+  sync_request: null;
 };
