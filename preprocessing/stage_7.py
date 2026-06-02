@@ -94,7 +94,19 @@ def collect_general_targets(encoded: set[str]) -> list[tuple[str, str]]:
         & (df["word"].str.len() >= MIN_WORD_LEN)
         & (df["word"].str.len() <= MAX_WORD_LEN)
     )
-    words = df.loc[mask, "word"].dropna().astype(str).tolist()
+    df_filtered = df.loc[mask].copy()
+    df_filtered["word"]  = df_filtered["word"].astype(str).str.lower()
+    df_filtered["lemma"] = df_filtered["lemma"].astype(str).str.lower()
+
+    # Keep one word per lemma: base form first (word == lemma), then highest frequency.
+    df_filtered["is_base"] = df_filtered["word"] == df_filtered["lemma"]
+    df_filtered = (
+        df_filtered
+        .sort_values(["is_base", "Totalt"], ascending=[False, False])
+        .drop_duplicates(subset=["lemma"], keep="first")
+    )
+
+    words = df_filtered["word"].tolist()
 
     if encoded:
         words = [w for w in words if w.lower() in encoded]

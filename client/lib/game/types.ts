@@ -79,7 +79,6 @@ export type SynonymDuelSettings = {
 
 export type AntiMatchSettings = {
   input_duration: number;
-  max_distance: number;
   rounds: number;
 };
 

@@ -34,12 +34,49 @@ def clean_text(text):
     """Normalizes Unicode and removes emojis/special characters."""
     if not isinstance(text, str):
         return text
-    # Normalize full-width characters and accents
     text = unicodedata.normalize('NFKC', text)
-    # Keep only letters, numbers, spaces, hyphens, periods, and apostrophes
     text = re.sub(r'[^\w\s\-\.\']', '', text)
-    # Strip extra whitespace
     return re.sub(r'\s+', ' ', text).strip()
+
+
+# Domain suffixes to strip: Amazon.com → Amazon
+_DOMAIN_RE = re.compile(r'\.(?:com|net|org|io|se|co\.uk)\b', re.IGNORECASE)
+
+# Corporate/legal boilerplate to strip from the end of a name.
+# Multi-word entries must come before their single-word components.
+_LEGAL_SUFFIX_RE = re.compile(
+    r'[,\s]+(?:'
+    r'Motor\s+Company|Motor\s+Corp(?:oration)?'
+    r'|Incorporated|Corporation|Company|Holdings?|Group'
+    r'|Inc|Corp|Ltd|LLC|LP|PLC|LLP'
+    r'|AB|Aktiebolag'
+    r'|GmbH|AG'
+    r'|SA|NV|BV'
+    r')\.?\s*$',
+    re.IGNORECASE,
+)
+
+_LEADING_THE_RE = re.compile(r'^The\s+', re.IGNORECASE)
+
+
+def clean_entity_name(text: str) -> str:
+    """Strip quotes, domain suffixes, and corporate/legal boilerplate from names.
+
+    Applied before clean_text so comma-detection still works (clean_text
+    removes commas). Runs up to 4 passes to handle stacked suffixes like
+    'EQT AB Group' → 'EQT AB' → 'EQT'.
+    """
+    if not isinstance(text, str):
+        return text
+    text = text.strip().strip('"\'')
+    text = _DOMAIN_RE.sub('', text)
+    for _ in range(4):
+        stripped = _LEGAL_SUFFIX_RE.sub('', text).strip().rstrip('.,')
+        if stripped == text:
+            break
+        text = stripped
+    text = _LEADING_THE_RE.sub('', text).strip().rstrip('.,').strip()
+    return text
 
 def extract_qid(val):
     """Detects if a string is a Wikidata Q-ID or URI."""
@@ -114,8 +151,8 @@ def process_maktbarometern():
                 df = df[df['score'] >= limit]
                 print(f"  {Path(f).name}: score >= {limit} → kept {len(df)}/{before} rows")
 
-        # Apply the Unicode/Emoji cleaner
-        df['name'] = df['name'].apply(clean_text)
+        # Strip corporate boilerplate, then normalize Unicode/emojis
+        df['name'] = df['name'].apply(lambda x: clean_text(clean_entity_name(x)))
 
         # Drop rows that became empty after cleaning (e.g. accounts that were just emojis)
         df = df[df['name'] != ""]
@@ -184,7 +221,8 @@ def process_seeding():
             # If it's STILL a Q-ID (meaning Wikidata has no label at all), return empty to drop it
             if extract_qid(val_str):
                 return ""
-                
+
+            val_str = clean_entity_name(val_str)
             return clean_text(val_str)
 
         df[label_col] = df[label_col].apply(update_and_clean)

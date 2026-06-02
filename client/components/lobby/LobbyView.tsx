@@ -83,9 +83,7 @@ export default function LobbyView({ code }: { code: string }) {
             </Link>
           </div>
 
-          <h1 className="text-4xl font-bold font-display text-game-purple max-[565px]:whitespace-break-spaces max-[565px]:text-center max-[565px]:text-2xl max-[565px]:px-2 whitespace-nowrap">
-            {hostName?.slice(-1) === "s" ? `${hostName} rum` : `${hostName}s rum`}
-          </h1>
+          <h1 className="text-4xl font-bold font-display text-game-purple max-[565px]:whitespace-break-spaces max-[565px]:text-center max-[565px]:text-2xl max-[565px]:px-2 whitespace-nowrap">{hostName?.slice(-1) === "s" ? `${hostName} rum` : `${hostName}s rum`}</h1>
           <div className="flex-1" />
         </motion.div>
         <div>
@@ -115,11 +113,7 @@ export default function LobbyView({ code }: { code: string }) {
               <BookOpenText />
             </Button>
 
-            <Button
-              size="lg"
-              // disabled={!isHost || !enoughPlayers}
-              onClick={handleStartGame}
-              className={cn("gap-2 flex-1 min-h-12 font-body transition-all", (!isHost || !enoughPlayers) && "opacity-50 cursor-not-allowed", isHost && !enoughPlayers && "opacity-50 cursor-not-allowed")}>
+            <Button size="lg" disabled={!isHost || !enoughPlayers} onClick={handleStartGame} className={cn("gap-2 flex-1 min-h-12 font-body transition-all", (!isHost || !enoughPlayers) && "opacity-50 cursor-not-allowed", isHost && !enoughPlayers && "opacity-50 cursor-not-allowed")}>
               {isHost && enoughPlayers ? (
                 <>
                   Starta

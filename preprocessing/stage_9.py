@@ -38,6 +38,7 @@ import logging
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 BASE_DIR    = Path(__file__).resolve().parent
 EMB_FILE    = BASE_DIR / "intermediate" / "stage5_encoded" / "embeddings.npy"
@@ -45,6 +46,7 @@ VOCAB_FILE  = BASE_DIR / "intermediate" / "stage5_encoded" / "vocab.json"
 SRC_FILE    = BASE_DIR / "intermediate" / "stage5_encoded" / "sources.json"
 LEMMA_FILE  = BASE_DIR / "intermediate" / "stage5_encoded" / "lemma_map.json"
 TARGET_FILE = BASE_DIR.parent / "server" / "wordfiles" / "targets.json"
+KORP_CSV    = BASE_DIR / "intermediate" / "korp_cleaned" / "korp_combined_cleaned.csv"
 
 # ── Cone quality thresholds ────────────────────────────────────────────────────
 # cone_width = sim@rank10 − sim@rank500  (how much similarity drops across the ranking)
@@ -118,6 +120,15 @@ def main() -> None:
     if LEMMA_FILE.exists():
         with LEMMA_FILE.open("r", encoding="utf-8") as f:
             lemma_map = json.load(f)
+
+    # ── Load Korp frequencies (used to prefer broader impostor candidates) ────
+    korp_freq: dict[str, int] = {}
+    if KORP_CSV.exists():
+        kf = pd.read_csv(KORP_CSV, header=0)
+        kf.columns = ["word", "freq"]
+        kf["freq"] = pd.to_numeric(kf["freq"], errors="coerce").fillna(0)
+        korp_freq = {str(w).lower(): int(f) for w, f in zip(kf["word"], kf["freq"])}
+        print(f"  Korp-frekvenser: {len(korp_freq):,} ord")
 
     # ── Load targets ──────────────────────────────────────────────────────────
     with TARGET_FILE.open("r", encoding="utf-8") as f:
@@ -196,10 +207,10 @@ def main() -> None:
             antihive_threshold = round(1.0 - sim_at_rank["500"], 4)
 
             # ── Impostor candidates ───────────────────────────────────────────
-            candidates: list[str] = []
+            # Collect all qualifying neighbours, then sort by Korp frequency
+            # descending so the impostor receives a broader/more general word.
+            raw_candidates: list[tuple[str, int]] = []
             for k in range(1, min(IMPOSTOR_MAX_SEARCH, cap)):
-                if len(candidates) >= IMPOSTOR_MAX_CANDIDATES:
-                    break
                 c_idx = int(sorted_idx[k])
                 c_sim = float(sim_row[c_idx])
 
@@ -220,12 +231,13 @@ def main() -> None:
 
                 if sources is not None:
                     c_type = sources[c_idx]
-                    # Accept same category, or allow "general" words as wildcard
-                    # in either direction so common nouns can pair with entities.
                     if c_type != t_type and c_type != "general" and t_type != "general":
                         continue
 
-                candidates.append(c_word)
+                raw_candidates.append((c_word, korp_freq.get(c_lower, 0)))
+
+            raw_candidates.sort(key=lambda x: x[1], reverse=True)
+            candidates = [w for w, _ in raw_candidates[:IMPOSTOR_MAX_CANDIDATES]]
 
             entry = dict(item)
             entry["sim_at_rank"]         = sim_at_rank

@@ -8,7 +8,10 @@ import (
 	"github.com/google/uuid"
 )
 
-const SYNC_DELAY = 2 * time.Second
+const (
+	MAX_CYCLES int8          = 127 // math.MaxInt8; cycleNumber overflows beyond this
+	SYNC_DELAY time.Duration = 2 * time.Second
+)
 
 // Game is the interface that all game modes must implement. A game is created
 // by the lobby when the host starts the session, runs in its own goroutine,
@@ -37,19 +40,25 @@ type Game interface {
 	// IsPlayerActive reports whether the given player is allowed to participate
 	// (e.g. send chat messages) at this point in the game.
 	IsPlayerActive(uuid.UUID) bool
+
+	// PlayerLeft notifies the game that a player disconnected mid-game.
+	// The game should eliminate them from active play while keeping their
+	// record intact for results display.
+	PlayerLeft(uuid.UUID)
 }
 
 // GameBase can be embedded in any game struct to satisfy HandleInput, Stop,
 // StartTime, and EndTime from the Game interface, leaving only Run to implement.
 // It also provides Broadcast and Send helpers to cut down on output boilerplate.
 type GameBase struct {
-	startTime     time.Time
-	endTime       time.Time
-	outputs       chan GameOutput
-	onDone        func()
-	inputs        chan GameInput
-	stop          chan struct{}
-	once sync.Once
+	startTime  time.Time
+	endTime    time.Time
+	outputs    chan GameOutput
+	onDone     func()
+	inputs     chan GameInput
+	playerLeft chan uuid.UUID
+	stop       chan struct{}
+	once       sync.Once
 }
 
 // GameInput carries a single player action from the lobby to the active game.
@@ -74,15 +83,16 @@ type GameOutput struct {
 
 func newGameBase(outputs chan GameOutput, onDone func()) GameBase {
 	return GameBase{
-		outputs:       outputs,
-		onDone:        onDone,
-		inputs: make(chan GameInput, 128),
-		stop:   make(chan struct{}),
+		outputs:    outputs,
+		onDone:     onDone,
+		inputs:     make(chan GameInput, 128),
+		playerLeft: make(chan uuid.UUID, 16),
+		stop:       make(chan struct{}),
 	}
 }
 
-func (b *GameBase) StartTime() time.Time          { return b.startTime }
-func (b *GameBase) EndTime() time.Time             { return b.endTime }
+func (b *GameBase) StartTime() time.Time            { return b.startTime }
+func (b *GameBase) EndTime() time.Time              { return b.endTime }
 func (b *GameBase) IsPlayerActive(_ uuid.UUID) bool { return true }
 
 // Resets startTime and endTime when a new phase starts
@@ -90,6 +100,17 @@ func (b *GameBase) StartPhase(duration int) {
 	now := time.Now()
 	b.startTime = now
 	b.endTime = now.Add((time.Duration(duration) * time.Second) + SYNC_DELAY)
+}
+
+// PlayerLeft notifies the game that a player disconnected. The default
+// implementation forwards the ID to the playerLeft channel; game modes that
+// care (e.g. ImpostorGame) select on it in their Run loop. Games that don't
+// override this inherit a safe no-op via the buffered channel drain.
+func (b *GameBase) PlayerLeft(id uuid.UUID) {
+	select {
+	case b.playerLeft <- id:
+	default:
+	}
 }
 
 // HandleInput forwards the input to the game's internal channel.

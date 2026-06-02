@@ -10,20 +10,21 @@ import (
 	"github.com/google/uuid"
 )
 
-// PhaseKind identifies the type of a phase node.
-type PhaseKind string
+// PhaseType identifies the type of a phase node.
+type ImpostorPhaseType string
 
 const (
-	SHOW_WORD_DURATION    int  = 8
-	INTERMEDIATE_DURATION int  = 5
-	MAX_CYCLES            int8 = 127 // math.MaxInt8; cycleNumber overflows beyond this
+	IMPOSTOR_MINIMUM_PLAYER_COUNT int = 3
 
-	PhaseKindShowWord     PhaseKind = "show_word"
-	PhaseKindInput        PhaseKind = "input"
-	PhaseKindDiscussion   PhaseKind = "discussion"
-	PhaseKindVote         PhaseKind = "vote"
-	PhaseKindIntermediate PhaseKind = "intermediate"
-	PhaseKindResult       PhaseKind = "result"
+	SHOW_WORD_DURATION    int = 8
+	INTERMEDIATE_DURATION int = 5
+
+	PhaseTypeShowWord     ImpostorPhaseType = "show_word"
+	PhaseTypeInput        ImpostorPhaseType = "input"
+	PhaseTypeDiscussion   ImpostorPhaseType = "discussion"
+	PhaseTypeVote         ImpostorPhaseType = "vote"
+	PhaseTypeIntermediate ImpostorPhaseType = "intermediate"
+	PhaseTypeResult       ImpostorPhaseType = "result"
 
 	// Settings matching the client-side settings for Impostor game
 	IMPOSTOR_COUNT_MIN               int = 1
@@ -36,25 +37,18 @@ const (
 	IMPOSTOR_VOTE_DURATION_MAX       int = 60
 )
 
-// ImpostorPhase is a node in the game-phase linked list.
-// The circular loop is: input → discussion → vote → intermediate → input.
-// Setting intermediatePhase.Next = resultPhase breaks the loop and ends the game.
-type ImpostorPhase struct {
-	Kind PhaseKind
-	Next *ImpostorPhase
-}
-
-// buildPhaseChain constructs the phase linked list and returns the entry node
-// (showWord), the intermediate node (used to break the loop), and the terminal
-// result node. The default wiring creates a circular loop between input,
-// discussion, vote, and intermediate.
-func buildPhaseChain() (showWord, intermediate, result *ImpostorPhase) {
-	showWord = &ImpostorPhase{Kind: PhaseKindShowWord}
-	input := &ImpostorPhase{Kind: PhaseKindInput}
-	discussion := &ImpostorPhase{Kind: PhaseKindDiscussion}
-	vote := &ImpostorPhase{Kind: PhaseKindVote}
-	intermediate = &ImpostorPhase{Kind: PhaseKindIntermediate}
-	result = &ImpostorPhase{Kind: PhaseKindResult}
+// buildImpostorPhaseChain constructs the phase linked list and returns the entry
+// node (showWord), the intermediate node (used to break the loop), and the
+// terminal result node. The default wiring creates a circular loop between
+// input, discussion, vote, and intermediate.
+// Break the loop by setting intermediate.Next = result before stopping.
+func buildImpostorPhaseChain() (showWord, intermediate, result *Phase[ImpostorPhaseType]) {
+	showWord = &Phase[ImpostorPhaseType]{Phase: PhaseTypeShowWord}
+	input := &Phase[ImpostorPhaseType]{Phase: PhaseTypeInput}
+	discussion := &Phase[ImpostorPhaseType]{Phase: PhaseTypeDiscussion}
+	vote := &Phase[ImpostorPhaseType]{Phase: PhaseTypeVote}
+	intermediate = &Phase[ImpostorPhaseType]{Phase: PhaseTypeIntermediate}
+	result = &Phase[ImpostorPhaseType]{Phase: PhaseTypeResult}
 
 	showWord.Next = input
 	input.Next = discussion
@@ -117,15 +111,15 @@ type ImpostorGame struct {
 	// wordPair holds the normal word and the full impostor candidate pool for this round.
 	wordPair ImpostorPair
 
-	// phase is the current node in the phase linked list.
-	phase *ImpostorPhase
+	// currentPhase is the current node in the phase linked list.
+	currentPhase *Phase[ImpostorPhaseType]
 
 	// intermediatePhase is kept so advancePhase can relink its Next to
 	// resultPhase when the game ends, breaking the circular loop.
-	intermediatePhase *ImpostorPhase
+	intermediatePhase *Phase[ImpostorPhaseType]
 
 	// resultPhase is the terminal node; no Next. Linked in when the game ends.
-	resultPhase *ImpostorPhase
+	resultPhase *Phase[ImpostorPhaseType]
 
 	// cycles is an array containing all the submissions and votes for all cycles
 	cycles []ImpostorCycle
@@ -156,13 +150,13 @@ func NewImpostorGame(
 	outputs chan GameOutput,
 	onDone func(),
 ) *ImpostorGame {
-	showWord, intermediate, result := buildPhaseChain()
+	showWord, intermediate, result := buildImpostorPhaseChain()
 	return &ImpostorGame{
 		GameBase:          newGameBase(outputs, onDone),
 		settings:          settings,
 		dict:              dict,
 		players:           createPlayersCircularList(players),
-		phase:             showWord,
+		currentPhase:      showWord,
 		intermediatePhase: intermediate,
 		resultPhase:       result,
 		cycles: []ImpostorCycle{{
@@ -453,6 +447,8 @@ func (g *ImpostorGame) Run() {
 		select {
 		case <-g.stop:
 			return
+		case id := <-g.playerLeft:
+			g.handlePlayerLeft(id)
 		case input := <-g.inputs:
 			g.processInput(input)
 		case <-ticker.C:
@@ -467,35 +463,35 @@ func (g *ImpostorGame) Run() {
 // deadline has passed. It is called exclusively from the Run ticker goroutine,
 // so all field access is implicitly single-threaded. Each transition starts the
 // new phase timer via StartPhase and broadcasts the appropriate events:
-//   - PhaseKindShowWord → PhaseKindInput: follows phase.Next, broadcasts ImpostorNewPhaseEvent.
-//   - PhaseKindInput → PhaseKindDiscussion: handled by advanceInputPlayer; broadcasts
+//   - PhaseTypeShowWord → PhaseTypeInput: follows phase.Next, broadcasts ImpostorNewPhaseEvent.
+//   - PhaseTypeInput → PhaseTypeDiscussion: handled by advanceInputPlayer; broadcasts
 //     ImpostorNewPhaseEvent when the cycle's input round is complete.
-//   - PhaseKindDiscussion → PhaseKindVote: follows phase.Next, broadcasts ImpostorNewPhaseEvent.
-//   - PhaseKindVote → PhaseKindIntermediate: follows phase.Next, broadcasts ImpostorVoteResultEvent.
-//   - PhaseKindIntermediate → PhaseKindInput (circular): follows phase.Next and broadcasts
+//   - PhaseTypeDiscussion → PhaseTypeVote: follows phase.Next, broadcasts ImpostorNewPhaseEvent.
+//   - PhaseTypeVote → PhaseTypeIntermediate: follows phase.Next, broadcasts ImpostorVoteResultEvent.
+//   - PhaseTypeIntermediate → PhaseTypeInput (circular): follows phase.Next and broadcasts
 //     ImpostorNewCycleEvent + ImpostorNewPhaseEvent. On game over, relinks
 //     intermediatePhase.Next to resultPhase before stopping.
 func (g *ImpostorGame) advancePhase() {
-	switch g.phase.Kind {
-	case PhaseKindShowWord:
-		g.phase = g.phase.Next
+	switch g.currentPhase.Phase {
+	case PhaseTypeShowWord:
+		g.currentPhase = g.currentPhase.Next
 		g.StartPhase(g.settings.InputDuration)
 		g.sendGamePhaseUpdate()
 
-	case PhaseKindInput:
+	case PhaseTypeInput:
 		g.advanceInputPlayer()
 
-	case PhaseKindDiscussion:
-		g.phase = g.phase.Next
+	case PhaseTypeDiscussion:
+		g.currentPhase = g.currentPhase.Next
 		g.StartPhase(g.settings.VoteDuration)
 		g.sendGamePhaseUpdate()
 
-	case PhaseKindVote:
+	case PhaseTypeVote:
 		votedOutPlayer, message := g.getPlayerWithMostVotes()
 		if votedOutPlayer != nil {
 			g.eliminatePlayer(*votedOutPlayer)
 		}
-		g.phase = g.phase.Next
+		g.currentPhase = g.currentPhase.Next
 		g.StartPhase(INTERMEDIATE_DURATION)
 		g.Broadcast(events.ImpostorVoteResultEvent, ImpostorVoteResultPayload{
 			GamePhasePayload: GamePhasePayload{StartTime: g.startTime.UnixMilli(), ReadyTime: g.startTime.Add(SYNC_DELAY).UnixMilli(), EndTime: g.endTime.UnixMilli()},
@@ -503,7 +499,7 @@ func (g *ImpostorGame) advancePhase() {
 			Message:          message,
 		})
 
-	case PhaseKindIntermediate:
+	case PhaseTypeIntermediate:
 		gameOver, impostorsWon := g.getCycleResult()
 		if !gameOver && g.cycleNumber == MAX_CYCLES {
 			gameOver = true
@@ -520,7 +516,7 @@ func (g *ImpostorGame) advancePhase() {
 				Votes:       make(map[uuid.UUID]*uuid.UUID),
 			})
 			g.currentPlayer = g.startingPlayer
-			g.phase = g.phase.Next
+			g.currentPhase = g.currentPhase.Next
 			g.StartPhase(g.settings.InputDuration)
 			g.sendGameCycleState()
 			g.sendGamePhaseUpdate()
@@ -540,7 +536,7 @@ func (g *ImpostorGame) advanceInputPlayer() {
 	next := g.currentPlayer.nextNode
 	if next == g.startingPlayer {
 		// Full cycle done — follow input.Next to discussion
-		g.phase = g.phase.Next
+		g.currentPhase = g.currentPhase.Next
 		g.StartPhase(g.settings.DiscussionDuration)
 	} else {
 		g.currentPlayer = next
@@ -561,8 +557,8 @@ func (g *ImpostorGame) advanceInputPlayer() {
 // Inputs received during any other phase, or with unexpected event types, are
 // silently dropped.
 func (g *ImpostorGame) processInput(input GameInput) {
-	switch g.phase.Kind {
-	case PhaseKindInput:
+	switch g.currentPhase.Phase {
+	case PhaseTypeInput:
 		if input.Event.Type != events.GameSubmitWordRequestEvent || input.ClientId != g.currentPlayer.self {
 			return
 		}
@@ -580,7 +576,7 @@ func (g *ImpostorGame) processInput(input GameInput) {
 		g.cycles[g.cycleNumber].Submissions[input.ClientId] = payload.Word
 		g.advanceInputPlayer()
 
-	case PhaseKindVote:
+	case PhaseTypeVote:
 		if input.Event.Type != events.GameSubmitVoteRequestEvent {
 			return
 		}
@@ -610,6 +606,29 @@ func (g *ImpostorGame) processInput(input GameInput) {
 		g.Broadcast(events.ImpostorVoteUpdateEvent, ImpostorVoteUpdatePayload{
 			Votes: maps.Clone(g.cycles[g.cycleNumber].Votes),
 		})
+	}
+}
+
+// handlePlayerLeft eliminates a player who disconnected mid-game and reacts
+// to any consequences: if it was their turn during input the phase advances
+// immediately, and if the elimination tips the balance the game ends.
+func (g *ImpostorGame) handlePlayerLeft(id uuid.UUID) {
+	if g.players[id] == nil {
+		return // already eliminated or unknown player
+	}
+
+	wasCurrentTurn := g.currentPhase.Phase == PhaseTypeInput && g.currentPlayer.self == id
+	g.eliminatePlayer(id)
+
+	if wasCurrentTurn {
+		g.advanceInputPlayer()
+	}
+
+	gameOver, impostorsWon := g.getCycleResult()
+	if gameOver {
+		g.intermediatePhase.Next = g.resultPhase
+		g.broadcastGameResult(impostorsWon)
+		g.Stop()
 	}
 }
 
@@ -720,7 +739,7 @@ func (g *ImpostorGame) sendGamePhaseUpdate() {
 
 	// Only meaningful during the input phase; omitted (nil) for all other phases.
 	var currentPlayer *uuid.UUID
-	if g.phase.Kind == PhaseKindInput {
+	if g.currentPhase.Phase == PhaseTypeInput {
 		id := g.currentPlayer.self
 		currentPlayer = &id
 	}
@@ -730,7 +749,7 @@ func (g *ImpostorGame) sendGamePhaseUpdate() {
 		WordsCycle:       maps.Clone(g.cycles[g.cycleNumber].Submissions),
 		VotesCycle:       maps.Clone(g.cycles[g.cycleNumber].Votes),
 		CurrentPlayer:    currentPlayer,
-		Phase:            g.phase.Kind,
+		Phase:            g.currentPhase.Phase,
 	}
 	g.Broadcast(events.GameNewPhaseEvent, state)
 }

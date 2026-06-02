@@ -192,7 +192,7 @@ func (c *Client) ReadPump() {
 
 			if c.Lobby != nil {
 				select {
-				case c.Lobby.SyncRequests <- struct{}{}:
+				case c.Lobby.ProfileUpdateRequests <- struct{}{}:
 				default:
 				}
 			}

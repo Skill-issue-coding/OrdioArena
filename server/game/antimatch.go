@@ -1,80 +1,143 @@
 package game
 
-import "time"
+import (
+	"math/rand/v2"
+	"server/words"
+	"time"
 
-const defaultAntiMatchMaxDistance = 0.5
+	"github.com/google/uuid"
+)
+
+type AntiMatchPhaseType string
 
 const (
 	// Settings matching the client-side settings for Anti-match game
-	ANTIMATCH_ROUND_DURATION_MIN = 10
-	ANTIMATCH_ROUND_DURATION_MAX = 60
-	ANTIMATCH_ROUNDS_MIN         = 1
-	ANTIMATCH_ROUNDS_MAX         = 5
-	ANTIMATCH_DISTANCE_MIN       = 0.1
-	ANTIMATCH_DISTANCE_MAX       = 1.0
+	ANTIMATCH_ROUND_DURATION_MIN int = 10
+	ANTIMATCH_ROUND_DURATION_MAX int = 60
+
+	ANTIMATCH_ROUNDS_MIN int8 = 1
+	ANTIMATCH_ROUNDS_MAX int8 = 5
+
+	AntiMatchPhaseInput       AntiMatchPhaseType = "input"
+	AntiMatchPhaseRoundResult AntiMatchPhaseType = "round_result"
+	AntiMatchPhaseResult      AntiMatchPhaseType = "result"
+
+	SHOW_ROUND_RESULT_DURATION int = 10
+
+	// defaultAntiMatchThreshold is the fallback cosine-distance cutoff used when
+	// a target word has not been enriched by stage 9 (AntiHiveThreshold == 0).
+	defaultAntiMatchThreshold = 0.5
 )
 
-type AntiMatchSettings struct {
-	InputDuration int     `json:"input_duration"`
-	MaxDistance   float64 `json:"max_distance"` // semantic distance threshold
-	Rounds        int     `json:"rounds"`
+// buildAntiMatchPhaseChain constructs the phase linked list and returns the
+// entry node (input), the roundResult node (used to break the loop), and the
+// terminal result node.
+// The default wiring creates a circular loop between input and round_result.
+// Break the loop by setting roundResult.Next = result before stopping.
+func buildAntiMatchPhaseChain() (entry, roundResult, result *Phase[AntiMatchPhaseType]) {
+	entry = &Phase[AntiMatchPhaseType]{Phase: AntiMatchPhaseInput}
+	roundResult = &Phase[AntiMatchPhaseType]{Phase: AntiMatchPhaseRoundResult}
+	result = &Phase[AntiMatchPhaseType]{Phase: AntiMatchPhaseResult}
+	entry.Next = roundResult
+	roundResult.Next = entry // circular: loops back until game ends
+	return
 }
 
-type AntiMatchPhase string
+// pickTarget selects a random target from the dictionary.
+// It prefers targets enriched by stage 9 (AntiHiveThreshold > 0) so that the
+// per-word threshold is available. Falls back to any target if none are enriched.
+// Returns (Target{}, false) when the dictionary has no targets at all.
+func pickAntiMatchTarget(dict *words.Dictionary) (words.Target, bool) {
+	if len(dict.Targets) == 0 {
+		return words.Target{}, false
+	}
 
-const (
-	AntiMatchPhaseInput  AntiMatchPhase = "input"
-	AntiMatchPhaseResult AntiMatchPhase = "result"
-)
+	enriched := make([]words.Target, 0, len(dict.Targets))
+	for _, t := range dict.Targets {
+		if t.AntiHiveThreshold > 0 {
+			enriched = append(enriched, t)
+		}
+	}
+
+	if len(enriched) > 0 {
+		return enriched[rand.IntN(len(enriched))], true
+	}
+	return dict.Targets[rand.IntN(len(dict.Targets))], true
+}
+
+type AntiMatchSettings struct {
+	InputDuration int  `json:"input_duration"`
+	Rounds        int8 `json:"rounds"`
+}
+
+type RoundEntries struct {
+	entries map[uuid.UUID]string
+}
 
 type AntiMatchGame struct {
 	GameBase
-	settings AntiMatchSettings
-	phase    AntiMatchPhase
-	timer    int
-	round    int
+	dict             *words.Dictionary
+	target           words.Target // picked at Run() start; provides the match threshold
+	players          map[uuid.UUID]bool
+	rounds           []RoundEntries
+	settings         AntiMatchSettings
+	phase            *Phase[AntiMatchPhaseType]
+	roundResultPhase *Phase[AntiMatchPhaseType] // kept to break the loop on game over
+	resultPhase      *Phase[AntiMatchPhaseType] // terminal node
 }
 
-func DefaultAntiMatchSettings() AntiMatchSettings {
-	return AntiMatchSettings{
-		InputDuration: 20,
-		MaxDistance:   defaultAntiMatchMaxDistance,
-		Rounds:        3,
+// matchThreshold returns the cosine-distance cutoff for this game's target word.
+// Uses the per-word AntiHiveThreshold when available, otherwise the package default.
+func (g *AntiMatchGame) matchThreshold() float64 {
+	if g.target.AntiHiveThreshold > 0 {
+		return g.target.AntiHiveThreshold
 	}
+	return defaultAntiMatchThreshold
+}
+
+func createPlayerMap(players []uuid.UUID) map[uuid.UUID]bool {
+	playersMap := make(map[uuid.UUID]bool, len(players))
+	for _, player := range players {
+		playersMap[player] = true
+	}
+	return playersMap
 }
 
 func NewAntimatchGame(
 	settings AntiMatchSettings,
+	dict *words.Dictionary,
 	outputs chan GameOutput,
+	players []uuid.UUID,
 	onDone func(),
 ) *AntiMatchGame {
+	entry, roundResult, result := buildAntiMatchPhaseChain()
 	return &AntiMatchGame{
-		GameBase: newGameBase(outputs, onDone),
-		settings: settings,
-		phase:    AntiMatchPhaseInput,
-		timer:    settings.InputDuration,
+		GameBase:         newGameBase(outputs, onDone),
+		dict:             dict,
+		settings:         settings,
+		phase:            entry,
+		roundResultPhase: roundResult,
+		resultPhase:      result,
+		rounds:           make([]RoundEntries, 0, settings.Rounds),
+		players:          createPlayerMap(players),
 	}
-}
-
-// AntiMatchThresholdFor returns the per-target distance threshold when the
-// target was enriched by stage 9, otherwise the default global threshold.
-// Pass the AntiHiveThreshold field from the active words.Target.
-func AntiMatchThresholdFor(perTargetThreshold float64) float64 {
-	if perTargetThreshold > 0 {
-		return perTargetThreshold
-	}
-	return defaultAntiMatchMaxDistance
 }
 
 // Run starts the AntiMatch game loop. It must be called in its own goroutine.
 func (g *AntiMatchGame) Run() {
+	target, ok := pickAntiMatchTarget(g.dict)
+	if !ok {
+		return
+	}
+	g.target = target
+
 	g.startTime = time.Now()
 	defer func() { g.endTime = time.Now() }()
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	defer g.onDone()
 
-	// TODO: pick target word, notify players
+	// TODO: notify players of target word and phase start
 
 	for {
 		select {
@@ -83,26 +146,18 @@ func (g *AntiMatchGame) Run() {
 		case input := <-g.inputs:
 			g.processInput(input)
 		case <-ticker.C:
-			g.timer--
-			if g.timer <= 0 {
-				g.advancePhase()
-			}
+			// TODO: advance phase when timer expires
 		}
 	}
 }
 
 func (g *AntiMatchGame) advancePhase() {
-	switch g.phase {
+	switch g.phase.Phase {
 	case AntiMatchPhaseInput:
-		g.phase = AntiMatchPhaseResult
-		// TODO: score submissions, g.broadcast(events.ResultEvent, ...)
-		g.round++
-		if g.round >= g.settings.Rounds {
-			g.Stop()
-			return
-		}
-		g.phase = AntiMatchPhaseInput
-		g.timer = g.settings.InputDuration
+		// TODO: score submissions against matchThreshold(), broadcast round result
+		g.phase = g.phase.Next // → round_result
+	case AntiMatchPhaseRoundResult:
+		g.phase = g.phase.Next // → input (circular)
 		// TODO: start next round
 	case AntiMatchPhaseResult:
 		g.Stop()
@@ -110,6 +165,5 @@ func (g *AntiMatchGame) advancePhase() {
 }
 
 func (g *AntiMatchGame) processInput(input GameInput) {
-	// TODO: switch on g.phase and input.Event.Type
+	// TODO: switch on g.phase.Phase and input.Event.Type
 }
-

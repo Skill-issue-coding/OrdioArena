@@ -26,7 +26,7 @@ QUERIES_BY_NAME: Dict[str, Query] = {
     for name, filename in QUERY_SPECS
 }
 
-DEFAULT_QUERY_NAMES = [name for name, _ in QUERY_SPECS]
+DEFAULT_QUERY_NAMES = ["swedish_music"]
 QUERIES: List[Query] = [QUERIES_BY_NAME[name] for name in DEFAULT_QUERY_NAMES]
 
 def get_query(name: str) -> Query:
