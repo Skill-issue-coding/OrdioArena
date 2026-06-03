@@ -22,7 +22,7 @@ OUTPUT_DIR = "intermediate/stage3_attrs"
 
 # Wikidata shares the same IP-rate-limit pool as Wikipedia.
 # 8 req/min = 7.5 s between requests — conservative but fast enough (50 QIDs/batch).
-MAX_REQUESTS_PER_MIN = 8
+MAX_REQUESTS_PER_MIN = 30
 MIN_INTERVAL_SECONDS = 60.0 / MAX_REQUESTS_PER_MIN
 
 # The specific Wikidata properties we care about for the game

@@ -372,16 +372,28 @@ func (g *ImpostorGame) pickImpostors() map[uuid.UUID]struct{} {
 // Returns (ImpostorPair, true) on success, or (ImpostorPair{}, false) if no
 // eligible target exists — for example when preprocessing has not been run.
 func pickImpostorPair(dict *words.Dictionary, impostorCount int) (ImpostorPair, bool) {
-	eligible := make([]words.Target, 0, len(dict.Targets))
-	for _, t := range dict.Targets {
+	entities := words.EntityTargets(dict.Targets)
+	eligible := make([]words.Target, 0, len(entities))
+	for _, t := range entities {
 		if len(t.ImpostorCandidates) >= impostorCount {
 			eligible = append(eligible, t)
+		}
+	}
+	// Fall back to the full target list if no entity targets have candidates.
+	if len(eligible) == 0 {
+		for _, t := range dict.Targets {
+			if len(t.ImpostorCandidates) >= impostorCount {
+				eligible = append(eligible, t)
+			}
 		}
 	}
 	if len(eligible) == 0 {
 		return ImpostorPair{}, false
 	}
-	target := eligible[rand.IntN(len(eligible))]
+	target, ok := words.WeightedPickTarget(eligible)
+	if !ok {
+		return ImpostorPair{}, false
+	}
 	return ImpostorPair{NormalWord: target.Word, ImpostorCandidates: target.ImpostorCandidates}, true
 }
 

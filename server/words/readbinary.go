@@ -136,6 +136,8 @@ func ReadBinaryFiles() map[string]WordEntry {
 // to SetRandomActiveWord over the full dictionary).
 // Accepts both the new format ([{"word":"…","type":"…"}]) and the legacy
 // format (["word",…]) — legacy entries get type "general".
+// NotabilityScore values are re-normalised so the highest score in the list
+// maps to 1.0, regardless of what the preprocessing pipeline produced.
 func LoadTargets() []Target {
 	data, err := os.ReadFile(TARGETS_JSON)
 	if err != nil {
@@ -145,6 +147,7 @@ func LoadTargets() []Target {
 	// Try new format first.
 	var targets []Target
 	if err := json.Unmarshal(data, &targets); err == nil && len(targets) > 0 {
+		normalizeNotabilityScores(targets)
 		log.Printf("words: loaded %d Contexto targets", len(targets))
 		return targets
 	}
@@ -161,6 +164,24 @@ func LoadTargets() []Target {
 	}
 	log.Printf("words: loaded %d Contexto targets (legacy format)", len(targets))
 	return targets
+}
+
+// normalizeNotabilityScores rescales NotabilityScore in-place so the maximum
+// value across all targets becomes 1.0. Scores of 0 (general vocabulary words
+// with no Wikidata/Maktbarometern data) are left at 0.
+func normalizeNotabilityScores(targets []Target) {
+	maxScore := 0.0
+	for _, t := range targets {
+		if t.NotabilityScore > maxScore {
+			maxScore = t.NotabilityScore
+		}
+	}
+	if maxScore <= 0 {
+		return
+	}
+	for i := range targets {
+		targets[i].NotabilityScore /= maxScore
+	}
 }
 
 // LoadLemmaMap reads lemma_map.json produced by stage 5/6.

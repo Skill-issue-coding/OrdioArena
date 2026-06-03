@@ -1,7 +1,6 @@
 package game
 
 import (
-	"math/rand/v2"
 	"server/words"
 	"time"
 
@@ -52,17 +51,24 @@ func pickAntiMatchTarget(dict *words.Dictionary) (words.Target, bool) {
 		return words.Target{}, false
 	}
 
-	enriched := make([]words.Target, 0, len(dict.Targets))
-	for _, t := range dict.Targets {
+	entities := words.EntityTargets(dict.Targets)
+
+	// Prefer entity targets enriched by stage 9 so the per-word threshold is available.
+	enriched := make([]words.Target, 0, len(entities))
+	for _, t := range entities {
 		if t.AntiHiveThreshold > 0 {
 			enriched = append(enriched, t)
 		}
 	}
-
 	if len(enriched) > 0 {
-		return enriched[rand.IntN(len(enriched))], true
+		return words.WeightedPickTarget(enriched)
 	}
-	return dict.Targets[rand.IntN(len(dict.Targets))], true
+
+	// Fall back to any entity target, then to the full list if none exist.
+	if len(entities) > 0 {
+		return words.WeightedPickTarget(entities)
+	}
+	return words.WeightedPickTarget(dict.Targets)
 }
 
 type AntiMatchSettings struct {

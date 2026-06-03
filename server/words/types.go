@@ -16,6 +16,11 @@ type Target struct {
 	Word string `json:"word"`
 	Type string `json:"type"`
 
+	// NotabilityScore is a [0, 1] value computed by stage 7 from Wikidata
+	// sitelinks and Maktbarometern scores. Higher means more recognisable.
+	// Zero for general vocabulary words without Wikidata/Maktbarometern data.
+	NotabilityScore float64 `json:"notability_score"`
+
 	// SimAtRank is populated by stage 9. Zero value means not yet enriched.
 	SimAtRank SimRanks `json:"sim_at_rank"`
 
