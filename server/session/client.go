@@ -263,7 +263,7 @@ func (c *Client) ReadPump() {
 				continue
 			}
 			select {
-			case c.Lobby.SyncRequests <- struct{}{}:
+			case c.Lobby.SyncRequest <- c:
 			default:
 			}
 
