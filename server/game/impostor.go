@@ -681,7 +681,6 @@ func (g *ImpostorGame) broadcastGameResult(impostorsWon bool) {
 // sendInitialGameState is called at the start of an impostor game
 // it sends ImpostorClientGameStatePayload to each player individually
 func (g *ImpostorGame) sendInitialGameState() {
-	timers := GamePhasePayload{StartTime: g.startTime.UnixMilli(), ReadyTime: g.startTime.Add(SYNC_DELAY).UnixMilli(), EndTime: g.endTime.UnixMilli()}
 	for playerId := range g.players {
 		word := g.wordPair.NormalWord
 		role := ImpostorRoleNormal
@@ -691,10 +690,9 @@ func (g *ImpostorGame) sendInitialGameState() {
 		}
 
 		state := ImpostorClientGameStatePayload{
-			Role:             role,
-			Word:             word,
-			ActivePlayers:    g.getActivePlayers(),
-			GamePhasePayload: timers,
+			Role:          role,
+			Word:          word,
+			ActivePlayers: g.getActivePlayers(),
 		}
 		g.Send(&playerId, events.GameRoundStartedEvent, state)
 	}

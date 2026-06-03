@@ -204,9 +204,30 @@ func (lobby *GameLobby) Run() {
 			}
 
 		case <-lobby.GameDone:
+			// Drain any buffered game outputs (e.g. game_result) before resetting
+			// the lobby phase. The game goroutine runs: broadcastGameResult →
+			// Stop → onDone, so game_result is guaranteed to be in GameOutputs
+			// by the time GameDone is readable. Without draining first, a Go
+			// select non-deterministically picks GameDone before GameOutputs,
+			// causing sync_gamestate(lobby) to reach clients before game_result,
+			// which races the context reset and leaves the result page blank.
+			for len(lobby.GameOutputs) > 0 {
+				out := <-lobby.GameOutputs
+				if out.Target == nil {
+					for c := range lobby.Clients {
+						c.SendEvent(out.Type, out.Payload)
+					}
+				} else {
+					for c := range lobby.Clients {
+						if c.UserId == *out.Target {
+							c.SendEvent(out.Type, out.Payload)
+							break
+						}
+					}
+				}
+			}
 			lobby.CurrentGame = nil
 			lobby.Phase = LobbyPhase
-			lobby.SyncStateToClients()
 		}
 	}
 }
