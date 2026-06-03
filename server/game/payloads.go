@@ -29,10 +29,9 @@ const (
 // =============================================================================
 
 type ImpostorClientGameStatePayload struct {
-	GamePhasePayload `json:"timers"`
-	Role             ImpostorGameRoles  `json:"role"`
-	Word             string             `json:"word"`
-	ActivePlayers    map[uuid.UUID]bool `json:"active_players"`
+	Role          ImpostorGameRoles  `json:"role"`
+	Word          string             `json:"word"`
+	ActivePlayers map[uuid.UUID]bool `json:"active_players"`
 }
 
 type ImpostorGamePhaseUpdatePayload struct {

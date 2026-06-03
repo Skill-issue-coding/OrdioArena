@@ -93,6 +93,10 @@ const (
 	// StartGameRequestEvent is received when a client wants to start the game.
 	// Payload: nil
 	StartGameRequestEvent EventType = "start_game"
+
+	// SyncRequestEvent asks the server to broadcast the latest lobby state.
+	// Payload: nil
+	SyncRequestEvent EventType = "sync_request"
 )
 
 // Event is the wire envelope for all WebSocket messages. Both directions use

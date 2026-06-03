@@ -257,6 +257,16 @@ func (c *Client) ReadPump() {
 			}
 			c.Lobby.StartGameRequests <- c
 
+		case events.SyncRequestEvent:
+			if c.Lobby == nil {
+				c.SendError("Du är inte i ett rum")
+				continue
+			}
+			select {
+			case c.Lobby.SyncRequests <- struct{}{}:
+			default:
+			}
+
 		case events.GameSubmitWordRequestEvent, events.GameSubmitGuessRequestEvent:
 			if c.Lobby == nil {
 				c.SendError("Du är inte i ett rum")
