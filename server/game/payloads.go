@@ -66,6 +66,13 @@ type GameResultPayload struct {
 	NormalSecretWord string                          `json:"normal_word"`
 }
 
+type AntiMatchPhaseUpdatePayload struct {
+	GamePhasePayload `json:"timers"`
+	Phase      AntiMatchPhaseType `json:"game_phase"`
+	TargetWord string             `json:"target_word"`
+	Submissions      map[uuid.UUID]bool `json:"submissions"`
+}
+
 // =============================================================================
 // Client → Server payload types
 // =============================================================================

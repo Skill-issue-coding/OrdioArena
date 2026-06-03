@@ -1,6 +1,7 @@
 package game
 
 import (
+	"server/events"
 	"server/words"
 	"time"
 
@@ -86,6 +87,7 @@ type AntiMatchGame struct {
 	target           words.Target // picked at Run() start; provides the match threshold
 	players          map[uuid.UUID]bool
 	rounds           []RoundEntries
+	roundNumber      int
 	settings         AntiMatchSettings
 	phase            *Phase[AntiMatchPhaseType]
 	roundResultPhase *Phase[AntiMatchPhaseType] // kept to break the loop on game over
@@ -117,6 +119,13 @@ func NewAntimatchGame(
 	onDone func(),
 ) *AntiMatchGame {
 	entry, roundResult, result := buildAntiMatchPhaseChain()
+
+	rounds := make([]RoundEntries, settings.Rounds)
+
+	for i := range rounds {
+		rounds[i] = RoundEntries{entries: make(map[uuid.UUID]string)}
+	}
+
 	return &AntiMatchGame{
 		GameBase:         newGameBase(outputs, onDone),
 		dict:             dict,
@@ -124,7 +133,8 @@ func NewAntimatchGame(
 		phase:            entry,
 		roundResultPhase: roundResult,
 		resultPhase:      result,
-		rounds:           make([]RoundEntries, 0, settings.Rounds),
+		rounds:           rounds,
+		roundNumber:      0,
 		players:          createPlayerMap(players),
 	}
 }
@@ -136,6 +146,10 @@ func (g *AntiMatchGame) Run() {
 		return
 	}
 	g.target = target
+
+	// Start the first round's timer!
+	g.StartPhase(g.settings.InputDuration)
+	g.sendGamePhaseUpdate()
 
 	g.startTime = time.Now()
 	defer func() { g.endTime = time.Now() }()
@@ -149,12 +163,41 @@ func (g *AntiMatchGame) Run() {
 		select {
 		case <-g.stop:
 			return
+		// case id := <-g.playerLeft:
+			// g.handlePlayerLeft(id) TODO: implement function when player leaves
 		case input := <-g.inputs:
 			g.processInput(input)
 		case <-ticker.C:
 			// TODO: advance phase when timer expires
+			if !time.Now().Before(g.endTime) {
+				g.advancePhase()
+			}
 		}
 	}
+}
+
+// sendGamePhaseUpdate broadcasts the current phase, timers, and the target word to everyone.
+func (g *AntiMatchGame) sendGamePhaseUpdate() {
+	timers := GamePhasePayload{
+		StartTime: g.startTime.UnixMilli(),
+		ReadyTime: g.startTime.Add(SYNC_DELAY).UnixMilli(),
+		EndTime:   g.endTime.UnixMilli(),
+	}
+
+	subs := make(map[uuid.UUID]bool)
+
+	for id := range g.rounds[g.roundNumber].entries {
+		subs[id] = true
+	}
+
+	payload := AntiMatchPhaseUpdatePayload{
+		GamePhasePayload: timers,
+		Phase:            g.phase.Phase,
+		TargetWord:       g.target.Word,
+		Submissions:      subs,
+	}
+	
+	g.Broadcast(events.GameNewPhaseEvent, payload)
 }
 
 func (g *AntiMatchGame) advancePhase() {
@@ -162,14 +205,50 @@ func (g *AntiMatchGame) advancePhase() {
 	case AntiMatchPhaseInput:
 		// TODO: score submissions against matchThreshold(), broadcast round result
 		g.phase = g.phase.Next // → round_result
+		g.StartPhase(SHOW_ROUND_RESULT_DURATION) // Start timer for results
+		g.sendGamePhaseUpdate() // Tell frontend to change views
 	case AntiMatchPhaseRoundResult:
 		g.phase = g.phase.Next // → input (circular)
 		// TODO: start next round
+		g.phase = g.phase.Next
 	case AntiMatchPhaseResult:
 		g.Stop()
 	}
 }
 
 func (g *AntiMatchGame) processInput(input GameInput) {
-	// TODO: switch on g.phase.Phase and input.Event.Type
+	switch g.phase.Phase {
+	case AntiMatchPhaseInput:
+		if input.Event.Type != events.GameSubmitWordRequestEvent {
+			return
+		}
+
+		payload, err := events.DecodePayload[GameSubmitWordPayload](input.Event)
+		if err != nil || payload.Word == "" {
+			return
+		}
+
+		word := payload.Word
+		_, exists := g.dict.WordMap[word]
+
+		if !exists && g.dict.LemmaMap != nil {
+			if lemma, ok := g.dict.LemmaMap[word]; ok {
+				word = lemma
+				_, exists = g.dict.WordMap[word]
+			}
+		}
+
+		if !exists {
+			g.Send(&input.ClientId, events.ErrorEvent, map[string]string{"message": "Ordet finns inte i vår ordbok. Försök med ett annat!"})
+			return
+		}
+
+		g.rounds[g.roundNumber].entries[input.ClientId] = word
+
+		g.sendGamePhaseUpdate()
+
+		if len(g.rounds[g.roundNumber].entries) == len(g.players) {
+			g.advancePhase()
+		}
+	}
 }
