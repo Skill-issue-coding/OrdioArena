@@ -4,6 +4,8 @@
  * game/payloads.go structs and are used throughout the React UI and WS layer.
  */
 
+import { GameTimers } from "./types";
+
 /** The current phase of an Impostor game. Mirrors Go's PhaseKind. */
 export type ImpostorPhase = "show_word" | "input" | "discussion" | "vote" | "intermediate" | "result";
 
@@ -19,16 +21,6 @@ export type ImpostorCycle = {
   submissions: Record<string, string>;
   /** Votes keyed by voter UUID; null value means a skip vote. */
   votes: Record<string, string | null>;
-};
-
-/** Server-side timestamps for a timed phase. Mirrors Go's GamePhasePayload. */
-export type GameTimers = {
-  /** Phase start time in Unix milliseconds. */
-  start_time: number;
-  /** When the actual phase begins (start_time + SYNC_DELAY). Show "get ready" overlay until this timestamp. */
-  ready_time: number;
-  /** Phase end time in Unix milliseconds. */
-  end_time: number;
 };
 
 /**

@@ -25,11 +25,19 @@
  * ```
  */
 
-import { ImpostorClientGameState, ImpostorGameResult, ImpostorPhaseUpdate, ImpostorVoteUpdate, ImpostorCycleUpdate, ImpostorVoteResult } from "@/lib/game/impostor-types";
+import {
+  ImpostorClientGameState,
+  ImpostorGameResult,
+  ImpostorPhaseUpdate,
+  ImpostorVoteUpdate,
+  ImpostorCycleUpdate,
+  ImpostorVoteResult,
+} from "@/lib/game/impostor-types";
 import { WSReceivedPayloadMap } from "@/lib/websocket/types";
 import { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { useLobbyContext } from "./lobbycontext";
 import { useWebsocketContext } from "./websocketcontext";
+import { AntiMatchPhaseUpdate } from "@/lib/game/antimatch-types";
 
 /**
  * Discriminated union of per-mode game state.
@@ -49,7 +57,10 @@ export type ActiveGameState =
       /** Active (non-eliminated) players. Set from game_round_started; updated on each impostor_new_cycle. */
       activePlayers: Record<string, boolean> | null;
     }
-  // | { mode: "anti_match"; roundState: AntiMatchRoundState | null; ... }
+  | {
+      mode: "anti_match";
+      phaseState: AntiMatchPhaseUpdate | null;
+    }
   | null;
 
 export interface GameContextProps {
@@ -81,6 +92,17 @@ export function useGameContext() {
 export function useImpostorGame() {
   const { gameState } = useGameContext();
   return gameState?.mode === "impostor" ? gameState : null;
+}
+
+/**
+ * Returns the fully-narrowed anti-match game state, or null when the active
+ * mode is not "anti_match" or no game is in progress.
+ * Use this in anti-match-specific components instead of useGameContext() to
+ * avoid the mode check and get properly typed roundState/phaseState/result.
+ */
+export function useAntiMatchGame() {
+  const { gameState } = useGameContext();
+  return gameState?.mode === "anti_match" ? gameState : null;
 }
 
 /**
@@ -250,9 +272,12 @@ export function GameContextProvider({ children }: { children: ReactNode }) {
           activePlayers: activePlayers,
         };
         break;
-      // case "anti_match":
-      //   gameState = { mode: "anti_match", roundState: roundState as AntiMatchRoundState | null, ... };
-      //   break;
+      case "anti_match":
+        gameState = {
+          mode: "anti_match",
+          phaseState: phaseState as AntiMatchPhaseUpdate | null,
+        };
+        break;
     }
   }
 
