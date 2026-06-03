@@ -19,6 +19,8 @@ export function AntiMatchView() {
   const isReady = usePhaseReady(readyTime);
   const remainingMs = usePhaseCountdown(readyTime);
 
+  console.log(game);
+
   // TODO: Later, handle the result phase later
   // if (game?.result) return <FinalScorePhase />;
 

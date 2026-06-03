@@ -25,14 +25,8 @@
  * ```
  */
 
-import {
-  ImpostorClientGameState,
-  ImpostorGameResult,
-  ImpostorPhaseUpdate,
-  ImpostorVoteUpdate,
-  ImpostorCycleUpdate,
-  ImpostorVoteResult,
-} from "@/lib/game/impostor-types";
+import { ImpostorClientGameState, ImpostorGameResult, ImpostorPhaseUpdate, ImpostorVoteUpdate, ImpostorCycleUpdate, ImpostorVoteResult } from "@/lib/game/impostor-types";
+import type { GameTimers } from "@/lib/game/types";
 import { WSReceivedPayloadMap } from "@/lib/websocket/types";
 import { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { useLobbyContext } from "./lobbycontext";
@@ -103,6 +97,17 @@ export function useImpostorGame() {
 export function useAntiMatchGame() {
   const { gameState } = useGameContext();
   return gameState?.mode === "anti_match" ? gameState : null;
+}
+
+/**
+ * Returns the active phase's GameTimers regardless of game mode, or null when no
+ * phase is in progress. Works for every mode that has timers in its phaseState
+ * (impostor, anti_match, and future modes that follow the same shape).
+ */
+export function useGamePhaseTimers(): GameTimers | null {
+  const { gameState } = useGameContext();
+  if (!gameState || !gameState.phaseState) return null;
+  return gameState.phaseState.timers;
 }
 
 /**

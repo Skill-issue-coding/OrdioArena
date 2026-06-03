@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { useImpostorGame } from "@/hooks/gamecontext";
+import { useGamePhaseTimers } from "@/hooks/gamecontext";
 
 const barColorMap = {
   green: "heat-hot",
@@ -11,11 +11,11 @@ const barColorMap = {
 };
 
 const CountdownBar = () => {
-  const game = useImpostorGame();
+  const timers = useGamePhaseTimers();
 
   // Derive timer values before hooks so they're stable on every render path.
-  const endTime = game?.phaseState?.timers.end_time ?? 0;
-  const totalDurationMs = game?.phaseState ? game.phaseState.timers.end_time - game.phaseState.timers.ready_time : 0;
+  const endTime = timers?.end_time ?? 0;
+  const totalDurationMs = timers ? timers.end_time - timers.ready_time : 0;
 
   const [timeLeft, setTimeLeft] = useState(() => Math.max(0, endTime - Date.now()));
 
@@ -31,7 +31,7 @@ const CountdownBar = () => {
     return () => clearInterval(timer);
   }, [endTime]);
 
-  if (!game || !game.phaseState) return null;
+  if (!timers) return null;
 
   const totalSeconds = Math.floor(timeLeft / 1000);
   const minutes = Math.floor(totalSeconds / 60);

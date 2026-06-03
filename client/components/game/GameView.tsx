@@ -9,10 +9,6 @@ import { ContextoGameView } from "./gamemodes/ContextoGameView";
 import { SynonymDuelView } from "./gamemodes/SynonymDuelView";
 import { AntiMatchView } from "./gamemodes/AntiMatchView";
 import { MainImpostorView } from "./gamemodes/MainImposterView";
-import { GameMode } from "@/lib/game/types";
-
-// --- Fake data toggle ---
-const FAKE_MODE: GameMode = "anti_match";
 
 export function GameView() {
   const { mode } = useLobbyContext();

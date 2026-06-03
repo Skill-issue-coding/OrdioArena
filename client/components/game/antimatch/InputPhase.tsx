@@ -73,11 +73,7 @@ export function InputPhase() {
               disabled={hasSubmitted}
               className="w-full h-full text-center font-display font-bold text-xl px-4 border-2 border-primary rounded-lg bg-muted shadow-sm focus:outline-none focus:ring-4 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50 disabled:opacity-50"
             />
-            <Button
-              onClick={sendWordSubmission}
-              disabled={!inputValue.trim() || hasSubmitted}
-              className="h-full aspect-square shrink-0 rounded-lg"
-              aria-label="Skicka meddelande">
+            <Button onClick={sendWordSubmission} disabled={!inputValue.trim() || hasSubmitted} className="h-full aspect-square shrink-0 rounded-lg" aria-label="Skicka meddelande">
               <Send className="size-6" />
             </Button>
           </div>
@@ -97,11 +93,7 @@ export function InputPhase() {
           return (
             <div key={p.user_id} className="relative flex flex-col items-center">
               <div className={!isSubmitted && !isSelf ? "opacity-50 transition-opacity" : ""}>
-                <PlayerAvatar
-                  name={p.username}
-                  color={p.background}
-                  className="w-10 h-10 border-3 font-display font-bold"
-                />
+                <PlayerAvatar name={p.username} color={p.background} className="w-10 h-10 border-3 font-display font-bold" />
               </div>
               {isSubmitted && (
                 <div className="absolute -bottom-6 w-5 h-5 rounded-full flex items-center justify-center">
