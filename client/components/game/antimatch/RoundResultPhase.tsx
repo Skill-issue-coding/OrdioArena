@@ -71,8 +71,8 @@ export function RoundResultPhase() {
           // Calculate the original entrance delay relative to the original mock array
           // so the initial render is identical, regardless of how they are sorted later.
           const originalIdx = MOCK_RESULTS.findIndex((mock) => mock.id === r.id);
-          const delay = (originalIdx === 0 ? 0.4 : 0) + 0.25 * (MOCK_RESULTS.length - originalIdx);
-          const duration = idx === 0 ? 0.1 : 0.25;
+          const delay = 0.25 * (MOCK_RESULTS.length - originalIdx);
+          const duration = idx === 0 ? 0.2 : 0.25;
           const strength = idx === 0 ? 1.15 : 1;
 
           const pop = popIn({ delay, duration, strength });
