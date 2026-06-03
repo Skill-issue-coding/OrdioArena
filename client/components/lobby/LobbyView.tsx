@@ -15,6 +15,7 @@ import { GAME_MODES } from "@/lib/game/gameModes";
 import { ToastError } from "@/lib/toast-functions";
 import RoomCodeDisplay from "./CodeDisplay";
 import { GameModeSelector, GameSettings } from "./GameSettings";
+import { QuickGuide } from "./QuickGuide";
 
 export default function LobbyView({ code }: { code: string }) {
   const { user } = useUserContext();
@@ -73,7 +74,9 @@ export default function LobbyView({ code }: { code: string }) {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-6">
       <div className="w-full max-w-4xl animate-slide-up">
-        <motion.div className="relative flex items-center justify-between mb-6" {...snapIn({ delay: 0.08, strength: 1.2, y: 10 })}>
+        <motion.div
+          className="relative flex items-center justify-between mb-6"
+          {...snapIn({ delay: 0.08, strength: 1.2, y: 10 })}>
           <div className="flex justify-start flex-1">
             <Link href="/" className="flex items-center" onClick={handleLeave}>
               <button className="flex items-center cursor-pointer gap-2 transition-colors text-muted-foreground hover:text-foreground">
@@ -83,7 +86,9 @@ export default function LobbyView({ code }: { code: string }) {
             </Link>
           </div>
 
-          <h1 className="text-4xl font-bold font-display text-game-purple max-[565px]:whitespace-break-spaces max-[565px]:text-center max-[565px]:text-2xl max-[565px]:px-2 whitespace-nowrap">{hostName?.slice(-1) === "s" ? `${hostName} rum` : `${hostName}s rum`}</h1>
+          <h1 className="text-4xl font-bold font-display text-game-purple max-[565px]:whitespace-break-spaces max-[565px]:text-center max-[565px]:text-2xl max-[565px]:px-2 whitespace-nowrap">
+            {hostName?.slice(-1) === "s" ? `${hostName} rum` : `${hostName}s rum`}
+          </h1>
           <div className="flex-1" />
         </motion.div>
         <div>
@@ -93,11 +98,15 @@ export default function LobbyView({ code }: { code: string }) {
                 <div className="flex flex-col gap-4">
                   <RoomCodeDisplay />
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold tracking-wider uppercase font-display text-muted-foreground">Spelläge</p>
+                    <p className="text-sm font-bold tracking-wider uppercase font-display text-muted-foreground">
+                      Spelläge
+                    </p>
                   </div>
                   <GameModeSelector />
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold tracking-wider uppercase font-display text-muted-foreground">Spelinställningar</p>
+                    <p className="text-sm font-bold tracking-wider uppercase font-display text-muted-foreground">
+                      Spelinställningar
+                    </p>
                   </div>
                   <GameSettings />
                 </div>
@@ -108,12 +117,22 @@ export default function LobbyView({ code }: { code: string }) {
             </motion.div>
           </div>
           <motion.div className="flex flex-col mt-6 sm:flex-row gap-6" {...snapIn({ delay: 0.24, y: 14, rotate: 1.5 })}>
-            <Button variant="glass" size="lg" className="flex-1 gap-2 min-h-12 font-body">
-              Snabb Guide
-              <BookOpenText />
-            </Button>
+            <QuickGuide>
+              <Button variant="glass" size="lg" className="flex-1 gap-2 min-h-12 font-body">
+                Snabb Guide
+                <BookOpenText />
+              </Button>
+            </QuickGuide>
 
-            <Button size="lg" disabled={!isHost || !enoughPlayers} onClick={handleStartGame} className={cn("gap-2 flex-1 min-h-12 font-body transition-all", (!isHost || !enoughPlayers) && "opacity-50 cursor-not-allowed", isHost && !enoughPlayers && "opacity-50 cursor-not-allowed")}>
+            <Button
+              size="lg"
+              disabled={!isHost || !enoughPlayers}
+              onClick={handleStartGame}
+              className={cn(
+                "gap-2 flex-1 min-h-12 font-body transition-all",
+                (!isHost || !enoughPlayers) && "opacity-50 cursor-not-allowed",
+                isHost && !enoughPlayers && "opacity-50 cursor-not-allowed",
+              )}>
               {isHost && enoughPlayers ? (
                 <>
                   Starta
