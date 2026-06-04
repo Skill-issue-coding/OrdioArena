@@ -94,7 +94,7 @@ type AntiMatchGame struct {
 	phase            *Phase[AntiMatchPhaseType]
 	roundResultPhase *Phase[AntiMatchPhaseType] // kept to break the loop on game over
 	resultPhase      *Phase[AntiMatchPhaseType] // terminal node
-	TotalScores 	 map[uuid.UUID]int
+	TotalScores      map[uuid.UUID]int
 }
 
 // matchThreshold returns the cosine-distance cutoff for this game's target word.
@@ -153,7 +153,7 @@ func (g *AntiMatchGame) Run() {
 
 	// Start the first round's timer!
 	g.StartPhase(g.settings.InputDuration)
-	g.sendGamePhaseUpdate()
+	g.sendInputPhase()
 
 	g.startTime = time.Now()
 	defer func() { g.endTime = time.Now() }()
@@ -168,7 +168,7 @@ func (g *AntiMatchGame) Run() {
 		case <-g.stop:
 			return
 		// case id := <-g.playerLeft:
-			// g.handlePlayerLeft(id) TODO: implement function when player leaves
+		// g.handlePlayerLeft(id) TODO: implement function when player leaves
 		case input := <-g.inputs:
 			g.processInput(input)
 		case <-ticker.C:
@@ -180,30 +180,41 @@ func (g *AntiMatchGame) Run() {
 	}
 }
 
-// sendGamePhaseUpdate broadcasts the current phase, timers, and the target word to everyone.
-func (g *AntiMatchGame) sendGamePhaseUpdate() {
-	timers := GamePhasePayload{
+// phaseTimers builds a GamePhasePayload from the current phase timestamps.
+func (g *AntiMatchGame) phaseTimers() GamePhasePayload {
+	return GamePhasePayload{
 		StartTime: g.startTime.UnixMilli(),
 		ReadyTime: g.startTime.Add(SYNC_DELAY).UnixMilli(),
 		EndTime:   g.endTime.UnixMilli(),
 	}
+}
 
-	subs := make(map[uuid.UUID]bool)
-
-	for id := range g.rounds[g.roundNumber].entries {
-		subs[id] = true
-	}
-
-	payload := AntiMatchPhaseUpdatePayload{
-		GamePhasePayload: timers,
-		Phase:            g.phase.Phase,
+// sendInputPhase broadcasts the start of an input phase with timers and the target word.
+func (g *AntiMatchGame) sendInputPhase() {
+	g.Broadcast(events.AntiMatchInputPhaseEvent, AntiMatchInputPhasePayload{
+		GamePhasePayload: g.phaseTimers(),
+		Phase:            string(AntiMatchPhaseInput),
 		TargetWord:       g.target.Word,
-		Submissions:      subs,
 		CurrentRound:     g.roundNumber + 1,
 		TotalRounds:      int(g.settings.Rounds),
-	}
-	
-	g.Broadcast(events.GameNewPhaseEvent, payload)
+	})
+}
+
+// sendRoundResultPhase broadcasts round scores. No sync delay — results display starts immediately.
+func (g *AntiMatchGame) sendRoundResultPhase(results map[uuid.UUID]AntiMatchPlayerResult, winner *uuid.UUID) {
+	g.Broadcast(events.AntiMatchRoundResultEvent, AntiMatchRoundResultPayload{
+		GamePhasePayload: GamePhasePayload{
+			StartTime: g.startTime.UnixMilli(),
+			ReadyTime: g.startTime.UnixMilli(),
+			EndTime:   g.endTime.UnixMilli(),
+		},
+		Phase:        string(AntiMatchPhaseRoundResult),
+		TargetWord:   g.target.Word,
+		Results:      results,
+		Winner:       winner,
+		CurrentRound: g.roundNumber + 1,
+		TotalRounds:  int(g.settings.Rounds),
+	})
 }
 
 func (g *AntiMatchGame) advancePhase() {
@@ -233,13 +244,13 @@ func (g *AntiMatchGame) advancePhase() {
 			if !isDuplicate {
 				wordEntry, exists := g.dict.Lookup(word)
 				if !exists {
-    				continue
+					continue
 				}
 				wordVec := wordEntry.WordVector
 				// CosineDistance returns [0, 2]. 0 is identical, 2 is opposite.
 				dist := util.CosineDistance(targetVec, wordVec)
-				
-				// Scale distance to a 0-100 point score. 
+
+				// Scale distance to a 0-100 point score.
 				// Example: dist of 0.15 becomes 100 - 15 = 85 points.
 				score = int(math.Max(0, 100.0-(dist*100.0)))
 			}
@@ -249,7 +260,7 @@ func (g *AntiMatchGame) advancePhase() {
 			// Determine the winner
 			if score > highestScore && !isDuplicate {
 				highestScore = score
-				winnerID := id 
+				winnerID := id
 				roundWinner = &winnerID
 			}
 
@@ -273,28 +284,9 @@ func (g *AntiMatchGame) advancePhase() {
 			}
 		}
 
-		g.phase = g.phase.Next // → round_result
+		g.phase = g.phase.Next                   // → round_result
 		g.StartPhase(SHOW_ROUND_RESULT_DURATION) // Start timer for results
-
-		timers := GamePhasePayload{
-			StartTime: g.startTime.UnixMilli(),
-			ReadyTime: g.startTime.Add(SYNC_DELAY).UnixMilli(), 
-			EndTime:   g.endTime.UnixMilli(),
-		}
-
-		payload := AntiMatchRoundResultPayload{
-			GamePhasePayload: timers,
-			Phase:            g.phase.Phase,
-			TargetWord:       g.target.Word,
-			Results:          results,
-			Winner:           roundWinner,
-			CurrentRound:     g.roundNumber + 1,
-			TotalRounds:      int(g.settings.Rounds),
-		}
-
-		g.Broadcast(events.GameRoundResultEvent, payload)
-
-		g.sendGamePhaseUpdate() // Tell frontend to change views
+		g.sendRoundResultPhase(results, roundWinner)
 	case AntiMatchPhaseRoundResult:
 		g.roundNumber++
 
@@ -304,11 +296,11 @@ func (g *AntiMatchGame) advancePhase() {
 			g.advancePhase()
 		} else {
 			// Start next round
-			g.phase = g.phase.Next 
+			g.phase = g.phase.Next
 			target, _ := pickAntiMatchTarget(g.dict)
 			g.target = target
 			g.StartPhase(g.settings.InputDuration)
-			g.sendGamePhaseUpdate()
+			g.sendInputPhase()
 		}
 	case AntiMatchPhaseResult:
 		for id := range g.players {
@@ -354,8 +346,7 @@ func (g *AntiMatchGame) processInput(input GameInput) {
 		}
 
 		g.rounds[g.roundNumber].entries[input.ClientId] = word
-
-		g.sendGamePhaseUpdate()
+		g.Broadcast(events.AntiMatchSubmissionUpdateEvent, AntiMatchSubmissionUpdatePayload{PlayerID: input.ClientId, HasSubmitted: true})
 
 		if len(g.rounds[g.roundNumber].entries) == len(g.players) {
 			g.advancePhase()

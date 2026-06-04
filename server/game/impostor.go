@@ -453,7 +453,6 @@ func (g *ImpostorGame) Run() {
 
 	g.StartPhase(SHOW_WORD_DURATION)
 	g.sendInitialGameState()
-	g.sendGamePhaseUpdate()
 
 	for {
 		select {
@@ -488,7 +487,7 @@ func (g *ImpostorGame) advancePhase() {
 	case PhaseTypeShowWord:
 		g.currentPhase = g.currentPhase.Next
 		g.StartPhase(g.settings.InputDuration)
-		g.sendGamePhaseUpdate()
+		g.sendInputPhase()
 
 	case PhaseTypeInput:
 		g.advanceInputPlayer()
@@ -496,7 +495,7 @@ func (g *ImpostorGame) advancePhase() {
 	case PhaseTypeDiscussion:
 		g.currentPhase = g.currentPhase.Next
 		g.StartPhase(g.settings.VoteDuration)
-		g.sendGamePhaseUpdate()
+		g.sendVotePhase()
 
 	case PhaseTypeVote:
 		votedOutPlayer, message := g.getPlayerWithMostVotes()
@@ -505,11 +504,7 @@ func (g *ImpostorGame) advancePhase() {
 		}
 		g.currentPhase = g.currentPhase.Next
 		g.StartPhase(INTERMEDIATE_DURATION)
-		g.Broadcast(events.ImpostorVoteResultEvent, ImpostorVoteResultPayload{
-			GamePhasePayload: GamePhasePayload{StartTime: g.startTime.UnixMilli(), ReadyTime: g.startTime.Add(SYNC_DELAY).UnixMilli(), EndTime: g.endTime.UnixMilli()},
-			VotedOut:         votedOutPlayer,
-			Message:          message,
-		})
+		g.sendIntermediatePhase(votedOutPlayer, message)
 
 	case PhaseTypeIntermediate:
 		gameOver, impostorsWon := g.getCycleResult()
@@ -530,8 +525,8 @@ func (g *ImpostorGame) advancePhase() {
 			g.currentPlayer = g.startingPlayer
 			g.currentPhase = g.currentPhase.Next
 			g.StartPhase(g.settings.InputDuration)
-			g.sendGameCycleState()
-			g.sendGamePhaseUpdate()
+			g.sendNewCycleState()
+			g.sendInputPhase()
 		}
 	}
 }
@@ -550,11 +545,12 @@ func (g *ImpostorGame) advanceInputPlayer() {
 		// Full cycle done — follow input.Next to discussion
 		g.currentPhase = g.currentPhase.Next
 		g.StartPhase(g.settings.DiscussionDuration)
+		g.sendDiscussionPhase()
 	} else {
 		g.currentPlayer = next
 		g.StartPhase(g.settings.InputDuration)
+		g.sendInputPhase()
 	}
-	g.sendGamePhaseUpdate()
 }
 
 // processInput handles a single player action forwarded from HandleInput.
@@ -586,6 +582,7 @@ func (g *ImpostorGame) processInput(input GameInput) {
 		}
 
 		g.cycles[g.cycleNumber].Submissions[input.ClientId] = payload.Word
+		g.Broadcast(events.ImpostorSubmissionUpdateEvent, ImpostorSubmissionUpdatePayload{PlayerID: input.ClientId, Word: payload.Word})
 		g.advanceInputPlayer()
 
 	case PhaseTypeVote:
@@ -615,9 +612,7 @@ func (g *ImpostorGame) processInput(input GameInput) {
 			}
 		}
 		g.cycles[g.cycleNumber].Votes[input.ClientId] = payload.Target
-		g.Broadcast(events.ImpostorVoteUpdateEvent, ImpostorVoteUpdatePayload{
-			Votes: maps.Clone(g.cycles[g.cycleNumber].Votes),
-		})
+		g.Broadcast(events.ImpostorVoteUpdateEvent, ImpostorVoteUpdatePayload{PlayerID: input.ClientId, Target: payload.Target})
 	}
 }
 
@@ -699,7 +694,7 @@ func (g *ImpostorGame) broadcastGameResult(impostorsWon bool) {
 		}
 	}
 
-	payload := GameResultPayload{
+	payload := ImpostorGameResultPayload{
 		Cycles:           cycles,
 		Winners:          winners,
 		Roles:            roles,
@@ -709,9 +704,24 @@ func (g *ImpostorGame) broadcastGameResult(impostorsWon bool) {
 	g.Broadcast(events.GameResultEvent, payload)
 }
 
-// sendInitialGameState is called at the start of an impostor game
-// it sends ImpostorClientGameStatePayload to each player individually
+// phaseTimers builds a GamePhasePayload from the current phase start/end times.
+func (g *ImpostorGame) phaseTimers() GamePhasePayload {
+	return GamePhasePayload{
+		StartTime: g.startTime.UnixMilli(),
+		ReadyTime: g.startTime.Add(SYNC_DELAY).UnixMilli(),
+		EndTime:   g.endTime.UnixMilli(),
+	}
+}
+
+// sendInitialGameState sends each player their word and role alongside the base
+// game state (timers, phase, active_players, current_round) at game start.
 func (g *ImpostorGame) sendInitialGameState() {
+	base := GameBaseUpdatePayload{
+		GamePhasePayload: g.phaseTimers(),
+		Phase:            string(g.currentPhase.Phase),
+		ActivePlayers:    g.getActivePlayers(),
+		CurrentRound:     int(g.cycleNumber),
+	}
 	for playerId := range g.players {
 		word := g.wordPair.NormalWord
 		role := ImpostorRoleNormal
@@ -719,19 +729,57 @@ func (g *ImpostorGame) sendInitialGameState() {
 			word = g.impostorWords[playerId]
 			role = ImpostorRoleImpostor
 		}
-
-		state := ImpostorClientGameStatePayload{
-			Role:          role,
-			Word:          word,
-			ActivePlayers: g.getActivePlayers(),
-		}
-		g.Send(&playerId, events.GameRoundStartedEvent, state)
+		g.Send(&playerId, events.ImpostorGameStartedEvent, ImpostorInitialStatePayload{
+			GameBaseUpdatePayload: base,
+			Role:                  role,
+			Word:                  word,
+		})
 	}
 }
 
-// sendGameCycleState is called when a game has completed one cycle (input -> discussion -> vote)
-// it sends ImpostorGameCycleUpdatePayload (all active players and all words/votes so far)
-func (g *ImpostorGame) sendGameCycleState() {
+// sendInputPhase broadcasts the start of an input turn with the current player.
+func (g *ImpostorGame) sendInputPhase() {
+	g.Broadcast(events.ImpostorInputPhaseEvent, ImpostorInputPhasePayload{
+		GamePhasePayload: g.phaseTimers(),
+		Phase:            string(PhaseTypeInput),
+		CurrentPlayer:    g.currentPlayer.self,
+	})
+}
+
+// sendDiscussionPhase broadcasts the discussion phase start with all cycle submissions.
+func (g *ImpostorGame) sendDiscussionPhase() {
+	g.Broadcast(events.ImpostorDiscussionPhaseEvent, ImpostorDiscussionPhasePayload{
+		GamePhasePayload: g.phaseTimers(),
+		Phase:            string(PhaseTypeDiscussion),
+		Submissions:      maps.Clone(g.cycles[g.cycleNumber].Submissions),
+	})
+}
+
+// sendVotePhase broadcasts the vote phase start with timers.
+func (g *ImpostorGame) sendVotePhase() {
+	g.Broadcast(events.ImpostorVotePhaseEvent, ImpostorVotePhasePayload{
+		GamePhasePayload: g.phaseTimers(),
+		Phase:            string(PhaseTypeVote),
+	})
+}
+
+// sendIntermediatePhase broadcasts the intermediate phase with vote result and updated active players.
+func (g *ImpostorGame) sendIntermediatePhase(votedOut *uuid.UUID, message string) {
+	g.Broadcast(events.ImpostorIntermediateEvent, ImpostorIntermediatePayload{
+		GamePhasePayload: GamePhasePayload{
+			StartTime: g.startTime.UnixMilli(),
+			ReadyTime: g.startTime.UnixMilli(), // no sync delay — result display starts immediately
+			EndTime:   g.endTime.UnixMilli(),
+		},
+		Phase:         string(PhaseTypeIntermediate),
+		VotedOut:      votedOut,
+		Message:       message,
+		ActivePlayers: g.getActivePlayers(),
+	})
+}
+
+// sendNewCycleState broadcasts full round history at the start of a new cycle.
+func (g *ImpostorGame) sendNewCycleState() {
 	cycles := make([]ImpostorCycle, len(g.cycles))
 	for i, c := range g.cycles {
 		cycles[i] = ImpostorCycle{
@@ -739,27 +787,5 @@ func (g *ImpostorGame) sendGameCycleState() {
 			Votes:       maps.Clone(c.Votes),
 		}
 	}
-	state := ImpostorGameCycleUpdatePayload{Cycles: cycles, ActivePlayers: g.getActivePlayers()}
-	g.Broadcast(events.ImpostorNewCycleEvent, state)
-}
-
-// sendGamePhaseUpdate is called when the game changed phase (for example input to discussion)
-func (g *ImpostorGame) sendGamePhaseUpdate() {
-	phaseTimers := GamePhasePayload{StartTime: g.startTime.UnixMilli(), ReadyTime: g.startTime.Add(SYNC_DELAY).UnixMilli(), EndTime: g.endTime.UnixMilli()}
-
-	// Only meaningful during the input phase; omitted (nil) for all other phases.
-	var currentPlayer *uuid.UUID
-	if g.currentPhase.Phase == PhaseTypeInput {
-		id := g.currentPlayer.self
-		currentPlayer = &id
-	}
-
-	state := ImpostorGamePhaseUpdatePayload{
-		GamePhasePayload: phaseTimers,
-		WordsCycle:       maps.Clone(g.cycles[g.cycleNumber].Submissions),
-		VotesCycle:       maps.Clone(g.cycles[g.cycleNumber].Votes),
-		CurrentPlayer:    currentPlayer,
-		Phase:            g.currentPhase.Phase,
-	}
-	g.Broadcast(events.GameNewPhaseEvent, state)
+	g.Broadcast(events.ImpostorRoundUpdateEvent, ImpostorRoundUpdatePayload{Rounds: cycles})
 }
