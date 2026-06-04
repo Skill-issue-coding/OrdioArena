@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { useLobbyContext } from "@/hooks/lobbycontext";
 import { useUserContext } from "@/hooks/usercontext";
 import { useWebsocketContext } from "@/hooks/websocketcontext";
-import { useImpostorGame } from "@/hooks/gamecontext";
+// import { useImpostorGame } from "@/hooks/gamecontext";
+import { useImpostorGame } from "@/hooks/newgamecontext";
 import { AnimatePresence, motion } from "framer-motion";
 import { snapIn } from "@/lib/animation-util";
 
@@ -67,10 +68,10 @@ export function DiscussionPhase() {
     setIsAtBottom(true);
   };
 
-  if (!game || !game.phaseState || !game.activePlayers || !users || !user) return null;
+  if (!users || !user) return null;
 
-  const submittedWords = game.phaseState.words_cycle;
-  const activePlayers = game.activePlayers;
+  const submittedWords = game.rounds[game.current_round]?.submissions ?? {};
+  const activePlayers = game.active_players;
   const isCurrentUserActive = activePlayers[user.user_id] ?? false;
 
   return (

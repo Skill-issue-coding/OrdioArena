@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { useGamePhaseTimers } from "@/hooks/gamecontext";
+import { useNewGameContext } from "@/hooks/newgamecontext";
+// import { useGamePhaseTimers } from "@/hooks/gamecontext";
 
 const barColorMap = {
   green: "heat-hot",
@@ -11,7 +12,8 @@ const barColorMap = {
 };
 
 const CountdownBar = () => {
-  const timers = useGamePhaseTimers();
+  const { game } = useNewGameContext();
+  const timers = game.timers;
 
   // Derive timer values before hooks so they're stable on every render path.
   const endTime = timers?.end_time ?? 0;

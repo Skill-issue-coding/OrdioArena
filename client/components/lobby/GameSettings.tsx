@@ -10,7 +10,7 @@ import { useEffect } from "react";
 import { useLobbyContext } from "@/hooks/lobbycontext";
 import { useUserContext } from "@/hooks/usercontext";
 import { useWebsocketContext } from "@/hooks/websocketcontext";
-import { GameMode, LobbyState } from "@/lib/game/types";
+import { GameMode, LobbyState } from "@/lib/game/game";
 
 export function GameModeSelector() {
   const { sendEvent } = useWebsocketContext();
@@ -38,33 +38,16 @@ export function GameModeSelector() {
               onClick={() => handleModeChange(m.id)}
               className={cn(
                 "relative text-left rounded-lg border-2 p-3 transition-all flex items-center gap-3",
-                active
-                  ? `bg-card border-current ${m.textClass} shadow-md`
-                  : "bg-muted/40 border-border hover:border-muted-foreground/40",
-                disabled || !isValidMode
-                  ? "cursor-not-allowed pointer-events-none opacity-50"
-                  : "cursor-pointer opacity-80",
+                active ? `bg-card border-current ${m.textClass} shadow-md` : "bg-muted/40 border-border hover:border-muted-foreground/40",
+                disabled || !isValidMode ? "cursor-not-allowed pointer-events-none opacity-50" : "cursor-pointer opacity-80",
               )}>
-              <div
-                className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center text-2xl shrink-0",
-                  `bg-game-${m.color}`,
-                )}>
-                {m.icon}
-              </div>
+              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-2xl shrink-0", `bg-game-${m.color}`)}>{m.icon}</div>
               <div className="flex-1 min-w-0">
-                <div
-                  className={cn("font-display font-bold text-sm truncate", active ? m.textClass : "text-foreground")}>
-                  {m.title}
-                </div>
+                <div className={cn("font-display font-bold text-sm truncate", active ? m.textClass : "text-foreground")}>{m.title}</div>
                 <div className="text-xs truncate text-muted-foreground">{m.players}</div>
               </div>
               {active && (
-                <div
-                  className={cn(
-                    "w-6 h-6 rounded-full flex items-center justify-center text-white shrink-0",
-                    `bg-game-${m.color}`,
-                  )}>
+                <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-white shrink-0", `bg-game-${m.color}`)}>
                   <Check className="w-4 h-4" />
                 </div>
               )}
@@ -104,8 +87,7 @@ export function GameSettings() {
 
   // Select lower impostor count if players leave when higher count is selected
   useEffect(() => {
-    const currentImpostorCount =
-      localvalues["impostor_count"] ?? (settings && "impostor_count" in settings ? settings.impostor_count : undefined);
+    const currentImpostorCount = localvalues["impostor_count"] ?? (settings && "impostor_count" in settings ? settings.impostor_count : undefined);
 
     if (currentImpostorCount && currentImpostorCount > maxImpostors) {
       setLocalValues((prev) => ({ ...prev, impostor_count: maxImpostors }));
@@ -163,16 +145,7 @@ export function GameSettings() {
 
             {setting.type === "slider" ? (
               <div className={cn("flex items-center gap-4", disabled && "pointer-events-none")}>
-                <Slider
-                  disabled={disabled}
-                  min={setting.min}
-                  max={setting.max}
-                  step={setting.step}
-                  value={[currentValue]}
-                  onValueChange={([v]) => handleSliderDrag(setting.key, v)}
-                  onValueCommit={([v]) => handleSettingUpdate(setting.key, v)}
-                  className="flex-1"
-                />
+                <Slider disabled={disabled} min={setting.min} max={setting.max} step={setting.step} value={[currentValue]} onValueChange={([v]) => handleSliderDrag(setting.key, v)} onValueCommit={([v]) => handleSettingUpdate(setting.key, v)} className="flex-1" />
                 <span className="w-8 text-sm font-bold text-right tabular-nums">
                   {localvalues[setting.key] ?? setting.default}
                   {setting.key.includes("duration") ? "s" : ""}

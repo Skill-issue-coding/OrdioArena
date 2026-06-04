@@ -1,19 +1,21 @@
-import { GameTimers } from "./types";
+import { GameTimers } from "./game";
 
-export type AntiMatchPhaseType = "input" | "round_result" | "result";
+// ---------------------------------------------------------------------------
+// Payload types (mirror Go structs — timers are flat fields, not nested)
+// ---------------------------------------------------------------------------
 
-export type PlayerSubmissionScore = {
-  word: string;
-  score: number;
-};
-
-export type AntiMatchPhaseUpdate = {
-  timers: GameTimers;
-  game_phase: AntiMatchPhaseType;
+/** antimatch_input_phase — broadcast when an input phase begins. */
+export type AntiMatchInputPhasePayload = GameTimers & {
+  phase: "input";
   target_word: string;
-  submissions?: Record<string, boolean>;
   current_round: number;
   total_rounds: number;
+};
+
+/** antimatch_submission_update — broadcast when a player submits a word. */
+export type AntiMatchSubmissionUpdatePayload = {
+  player_id: string;
+  has_submitted: boolean;
 };
 
 export type AntiMatchPlayerResult = {
@@ -23,9 +25,9 @@ export type AntiMatchPlayerResult = {
   total_score: number;
 };
 
-export type AntiMatchRoundResult = {
-  timers: GameTimers;
-  game_phase: AntiMatchPhaseType;
+/** antimatch_round_result — broadcast when a round ends with scores. */
+export type AntiMatchRoundResultPayload = GameTimers & {
+  phase: "round_result";
   target_word: string;
   results: Record<string, AntiMatchPlayerResult>;
   winner?: string;
@@ -33,6 +35,7 @@ export type AntiMatchRoundResult = {
   total_rounds: number;
 };
 
-export type AntiMatchGameResult = {
+/** game_result (antimatch) — broadcast when the game ends. */
+export type AntiMatchGameResultPayload = {
   total_scores: Record<string, number>;
 };

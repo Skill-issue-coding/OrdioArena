@@ -4,9 +4,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ChartContainer, ChartTooltipContent, ChartLegendContent, ChartTooltip, ChartLegend, type ChartConfig } from "@/components/ui/chart";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis, ReferenceDot } from "recharts";
 import { cn } from "@/lib/utils";
-import { ImpostorCycle } from "@/lib/game/impostor-types";
+// import { ImpostorCycle } from "@/lib/game/impostor-types";
+// import { useImpostorGame } from "@/hooks/gamecontext";
 import { chartColor } from "@/lib/chart-colors";
-import { useImpostorGame } from "@/hooks/gamecontext";
+import { useNewGameContext, type ImpostorGameResultPayload } from "@/hooks/newgamecontext";
 import { useLobbyContext } from "@/hooks/lobbycontext";
 
 interface StatsDialogProps {
@@ -14,8 +15,10 @@ interface StatsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+type Cycle = ImpostorGameResultPayload["cycles"][number];
+
 /** Returns the voted-out player ID for a cycle, or null if nobody was eliminated. */
-function getVotedOut(cycle: ImpostorCycle): string | null {
+function getVotedOut(cycle: Cycle): string | null {
   const counts: Record<string, number> = {};
   let skipCount = 0;
   for (const target of Object.values(cycle.votes)) {
@@ -37,12 +40,12 @@ function getVotedOut(cycle: ImpostorCycle): string | null {
 const SKIP_COLOR = "#94a3b8";
 
 export function StatsDialog({ open, onOpenChange }: StatsDialogProps) {
-  const game = useImpostorGame();
+  const { result: rawResult } = useNewGameContext();
   const { users } = useLobbyContext();
 
-  if (!game?.result || !users) return null;
+  if (!rawResult || !users) return null;
 
-  const { cycles, roles, normal_word: normalWord } = game.result;
+  const { cycles, roles, normal_word: normalWord } = rawResult as ImpostorGameResultPayload;
 
   // ── Vote line chart data ──────────────────────────────────────────────────
   // Collect all player IDs that received ≥1 vote across any round.

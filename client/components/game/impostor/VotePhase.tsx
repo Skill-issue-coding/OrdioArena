@@ -4,10 +4,11 @@ import PhaseTransition from "@/components/game/PhaseTransition";
 import { cn, deriveTally } from "@/lib/utils";
 import { useUserContext } from "@/hooks/usercontext";
 import { useWebsocketContext } from "@/hooks/websocketcontext";
-import { useImpostorGame } from "@/hooks/gamecontext";
+// import { useImpostorGame } from "@/hooks/gamecontext";
+import { useImpostorGame } from "@/hooks/newgamecontext";
 import { useLobbyContext } from "@/hooks/lobbycontext";
 import { useMemo, useState } from "react";
-import { User } from "@/lib/game/types";
+import { User } from "@/lib/game/game";
 import { AnimatePresence, motion } from "framer-motion";
 
 const AVATAR_CAP = 5;
@@ -74,14 +75,14 @@ export function VotePhase() {
   // server echoes it back via impostor_vote_update.
   const [myVote, setMyVote] = useState<string | null | undefined>(undefined);
 
-  const serverVotes = game?.phaseState?.votes_cycle_votes ?? {};
+  const serverVotes = game.rounds[game.current_round]?.votes ?? {};
   const allVotes = useMemo(() => ({ ...serverVotes, ...(myVote !== undefined && user ? { [user.user_id]: myVote } : {}) }), [serverVotes, myVote, user]);
 
   const { votersByTarget, skipVoters, counts, skipCount, maxVotes, leader } = useMemo(() => deriveTally(allVotes), [allVotes]);
 
-  if (!game || !game.phaseState || !game.activePlayers || !users || !user) return null;
+  if (!users || !user) return null;
 
-  const activePlayers = game.activePlayers;
+  const activePlayers = game.active_players;
   const myId = user.user_id;
   const isCurrentUserActive = activePlayers[myId] ?? false;
 

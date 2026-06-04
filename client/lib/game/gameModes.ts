@@ -1,6 +1,6 @@
 //export type GameModeId = "impostor" | "contexto" | "synonym" | "antimatch";
 
-import { GameMode } from "./types";
+import { GameMode } from "./game";
 export type GameModeColor = "green" | "pink" | "blue" | "yellow" | "red";
 
 export interface GameModeConfig {

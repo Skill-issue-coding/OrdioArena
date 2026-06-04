@@ -1,27 +1,22 @@
 /**
  * @file antimatch.ts (lib/websocket/game)
  * WebSocket event types for the Anti-Match game mode (server → client).
+ * Mirrors Go payloads in server/game/payloads.go and events in server/events/game_events.go.
  */
 
-import { AntiMatchPhaseUpdate, AntiMatchRoundResult, AntiMatchGameResult } from "@/lib/game/antimatch-types";
+import {
+  AntiMatchInputPhasePayload,
+  AntiMatchSubmissionUpdatePayload,
+  AntiMatchRoundResultPayload,
+  AntiMatchGameResultPayload,
+} from "@/lib/game/antimatch-types";
 
 // ---------------------------------------------------------------------------
-// Server → Client
+// Server → Client discriminated union
 // ---------------------------------------------------------------------------
 
 export type AntiMatchWSReceivedEvent =
-  | {
-      /** Broadcast when the phase transitions (e.g., to the input phase) */
-      type: "new_game_phase";
-      payload: AntiMatchPhaseUpdate;
-    }
-  | {
-      /** Broadcast when a round ends, revealing scores, duplicates, and the winner */
-      type: "game_round_result";
-      payload: AntiMatchRoundResult;
-    }
-  | {
-      /** Broadcast when the game ends, revealing final scores and the pole positions */
-      type: "game_result";
-      payload: AntiMatchGameResult;
-    };
+  | { type: "antimatch_input_phase"; payload: AntiMatchInputPhasePayload }
+  | { type: "antimatch_submission_update"; payload: AntiMatchSubmissionUpdatePayload }
+  | { type: "antimatch_round_result"; payload: AntiMatchRoundResultPayload }
+  | { type: "game_result"; payload: AntiMatchGameResultPayload };

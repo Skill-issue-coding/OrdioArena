@@ -10,8 +10,8 @@ import ThemedToaster from "@/components/themed-toaster";
 import { Suspense } from "react";
 import { WebSocketProvider } from "@/hooks/websocketcontext";
 import { UserProvider } from "@/hooks/usercontext";
-import { LobbyContextProvider } from "@/hooks/lobbycontext";
-import { GameContextProvider } from "@/hooks/gamecontext";
+// import { LobbyContextProvider } from "@/hooks/lobbycontext";
+// import { GameContextProvider } from "@/hooks/gamecontext";
 import { Background } from "@/components/background/background";
 
 const fredoka = Fredoka({
@@ -66,17 +66,17 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <WebSocketProvider>
             <UserProvider>
-              <LobbyContextProvider>
-                <GameContextProvider>
-                  <TooltipProvider>
-                    {children}
-                    <Suspense fallback={null}>
-                      <LobbyChat />
-                    </Suspense>
-                    <UserProfileButton />
-                  </TooltipProvider>
-                </GameContextProvider>
-              </LobbyContextProvider>
+              {/* <LobbyContextProvider> */}
+              {/* <GameContextProvider> */}
+              <TooltipProvider>
+                {children}
+                <Suspense fallback={null}>
+                  <LobbyChat />
+                </Suspense>
+                <UserProfileButton />
+              </TooltipProvider>
+              {/* </GameContextProvider> */}
+              {/* </LobbyContextProvider> */}
             </UserProvider>
           </WebSocketProvider>
           <ThemedToaster />

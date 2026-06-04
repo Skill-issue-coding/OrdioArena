@@ -1,7 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { ImpostorVoteUpdate } from "./game/impostor-types";
-import { VoteTally } from "./game/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -23,7 +22,7 @@ export function isStringEmptyOrOnlySpaces(str: string) {
 /**
  * Derive vote tallies and current leader from a vote map.
  */
-export function deriveTally(allVotes: ImpostorVoteUpdate["votes"]): VoteTally {
+export function deriveTally(allVotes: ImpostorVoteUpdate["votes"]) {
   const votersByTarget: Record<string, string[]> = {};
   const skipVoters: string[] = [];
   const counts: Record<string, number> = {};

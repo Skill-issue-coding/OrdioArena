@@ -5,28 +5,30 @@ import { useState } from "react";
 import { Check, Send } from "lucide-react";
 import { PlayerAvatar } from "@/components/lobby/PlayerList";
 import { Button } from "@/components/ui/button";
-import { useGameContext } from "@/hooks/gamecontext";
+// import { useGameContext } from "@/hooks/gamecontext";
 import { useLobbyContext } from "@/hooks/lobbycontext";
 import { useUserContext } from "@/hooks/usercontext";
 import { useWebsocketContext } from "@/hooks/websocketcontext";
 import { isStringEmptyOrOnlySpaces } from "@/lib/utils";
 import { ToastError } from "@/lib/toast-functions";
 import { motion } from "framer-motion";
+import { useAntiMatchGame } from "@/hooks/newgamecontext";
 
 export function InputPhase() {
   const [inputValue, setInputValue] = useState("");
-  const { gameState } = useGameContext();
+  // const { gameState } = useGameContext();
+  const game = useAntiMatchGame();
   const { users } = useLobbyContext();
   const { user } = useUserContext();
   const { sendEvent } = useWebsocketContext();
 
-  if (gameState?.mode !== "anti_match" || !gameState.phaseState || !users || !user) return null;
+  if (!users || !user) return null;
 
-  const targetWord = gameState.phaseState.target_word;
-  const submissions = gameState.phaseState.submissions ?? {};
-  const hasSubmitted = submissions[user.user_id] ?? false;
-  const currentRound = gameState.phaseState.current_round;
-  const totalRounds = gameState.phaseState.total_rounds;
+  const targetWord = game.word;
+  const hasSubmittedMap = game.rounds[game.current_round]?.has_submitted ?? {};
+  const hasSubmitted = hasSubmittedMap[user.user_id] ?? false;
+  const currentRound = game.current_round + 1;
+  const totalRounds = game.total_rounds;
 
   const sendWordSubmission = () => {
     if (hasSubmitted) return;
@@ -77,11 +79,7 @@ export function InputPhase() {
               disabled={hasSubmitted}
               className="w-full h-full text-center font-display font-bold text-xl px-4 border-2 border-primary rounded-lg bg-muted shadow-sm focus:outline-none focus:ring-4 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50 disabled:opacity-50"
             />
-            <Button
-              onClick={sendWordSubmission}
-              disabled={!inputValue.trim() || hasSubmitted}
-              className="h-full aspect-square shrink-0 rounded-lg"
-              aria-label="Skicka meddelande">
+            <Button onClick={sendWordSubmission} disabled={!inputValue.trim() || hasSubmitted} className="h-full aspect-square shrink-0 rounded-lg" aria-label="Skicka meddelande">
               <Send className="size-6" />
             </Button>
           </div>
@@ -95,17 +93,13 @@ export function InputPhase() {
       </div>
       <div className="flex items-center justify-center gap-4">
         {Object.values(users).map((p) => {
-          const isSubmitted = submissions[p.user_id];
+          const isSubmitted = hasSubmittedMap[p.user_id];
           const isSelf = p.user_id === user.user_id;
 
           return (
             <div key={p.user_id} className="relative flex flex-col items-center">
               <div className={!isSubmitted && !isSelf ? "opacity-50 transition-opacity" : ""}>
-                <PlayerAvatar
-                  name={p.username}
-                  color={p.background}
-                  className="w-10 h-10 border-3 font-display font-bold"
-                />
+                <PlayerAvatar name={p.username} color={p.background} className="w-10 h-10 border-3 font-display font-bold" />
               </div>
               {isSubmitted && (
                 <div className="absolute -bottom-6 w-5 h-5 rounded-full flex items-center justify-center">

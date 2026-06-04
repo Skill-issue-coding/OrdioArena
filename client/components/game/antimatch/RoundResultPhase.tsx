@@ -5,34 +5,36 @@ import { PlayerAvatar } from "@/components/lobby/PlayerList";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 import { motion } from "framer-motion";
-import { useGameContext } from "@/hooks/gamecontext";
+// import { useGameContext } from "@/hooks/gamecontext";
 import { useLobbyContext } from "@/hooks/lobbycontext";
-import { useUserContext } from "@/hooks/usercontext";
-import { useAntiMatchGame } from "@/hooks/gamecontext";
+import { useAntiMatchGame } from "@/hooks/newgamecontext";
+// import { useAntiMatchGame } from "@/hooks/gamecontext";
 
 export function RoundResultPhase() {
   const [showFails, setShowFails] = useState(false);
-  const { gameState } = useGameContext();
+  // const { gameState } = useGameContext();
   const { users } = useLobbyContext();
-  const { user } = useUserContext();
   const game = useAntiMatchGame();
+  // const game = useAntiMatchGame();
 
   useEffect(() => {
     const timer = setTimeout(() => setShowFails(true), 1200);
     return () => clearTimeout(timer);
   }, []);
 
-  if (!game?.roundResultState || !users) return null;
+  const round = game.rounds[game.current_round];
+  if (!round || !users) return null;
 
-  const { target_word, results, winner } = game.roundResultState;
+  const target_word = game.word;
+  const { submissions, winner } = round;
 
-  const sortedResults = Object.entries(results)
+  const sortedResults = Object.entries(submissions)
     .map(([userId, result]) => ({
       id: userId,
       name: users[userId]?.username || "Okänd",
       color: users[userId]?.background || "#ccc",
-      word: result.word === "---" ? null : result.word,
-      points: result.score,
+      word: result.word === "-" ? null : result.word,
+      points: result.word_score,
       isDuplicate: result.is_duplicate,
       isWinner: userId === winner,
     }))
@@ -50,10 +52,7 @@ export function RoundResultPhase() {
 
   // Find duplicates to list them in the subheader
   const duplicateWords = Array.from(new Set(sortedResults.filter((r) => r.isDuplicate).map((d) => d.word)));
-  const duplicateText =
-    duplicateWords.length > 0 ? duplicateWords.map((w) => `"${w}"`).join(" · ") + " (Dubblett)" : "Alla ord är unika!";
-
-  if (gameState?.mode !== "anti_match" || !gameState.phaseState || !users || !user) return null;
+  const duplicateText = duplicateWords.length > 0 ? duplicateWords.map((w) => `"${w}"`).join(" · ") + " (Dubblett)" : "Alla ord är unika!";
 
   return (
     <div className="flex flex-col items-center w-full max-w-2xl mx-auto mt-8 relative z-10">
@@ -72,59 +71,23 @@ export function RoundResultPhase() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1, duration: 0.4 }}
-              className={cn(
-                "flex items-center gap-4 p-4 rounded-2xl border-2 transition-all duration-500",
-                isFailed && showFails
-                  ? "border-game-red bg-game-red/5"
-                  : r.isWinner
-                    ? "border-game-green bg-game-green/10"
-                    : "border-border bg-card",
-              )}>
+              className={cn("flex items-center gap-4 p-4 rounded-2xl border-2 transition-all duration-500", isFailed && showFails ? "border-game-red bg-game-red/5" : r.isWinner ? "border-game-green bg-game-green/10" : "border-border bg-card")}>
               <div className="w-6 text-center font-display font-extrabold text-xl">{r.rank}</div>
 
-              <PlayerAvatar
-                name={r.name}
-                color={r.color}
-                className="w-10 h-10 border-2 font-display font-bold shrink-0"
-              />
+              <PlayerAvatar name={r.name} color={r.color} className="w-10 h-10 border-2 font-display font-bold shrink-0" />
 
               <div className="flex-1 min-w-0">
                 <div className="relative inline-block w-max">
                   <div className="font-display font-bold text-xs text-muted-foreground">{r.name}</div>
-                  {isFailed && showFails && (
-                    <motion.div
-                      className="absolute top-1/2 left-[-5%] right-[-5%] h-0.5 bg-game-red origin-left rounded-full"
-                      initial={{ scaleX: 0 }}
-                      animate={{ scaleX: 1 }}
-                      transition={{ duration: 0.35, ease: "easeInOut" }}
-                    />
-                  )}
+                  {isFailed && showFails && <motion.div className="absolute top-1/2 left-[-5%] right-[-5%] h-0.5 bg-game-red origin-left rounded-full" initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.35, ease: "easeInOut" }} />}
                 </div>
                 <div className="font-display font-extrabold text-xl truncate flex items-center gap-2">
                   {r.word ? `"${r.word}"` : "---"}
-                  {r.isDuplicate && (
-                    <span className="text-[10px] font-display font-extrabold text-game-red uppercase tracking-wider">
-                      · Dubblett
-                    </span>
-                  )}
+                  {r.isDuplicate && <span className="text-[10px] font-display font-extrabold text-game-red uppercase tracking-wider">· Dubblett</span>}
                 </div>
               </div>
 
-              <div
-                className={cn(
-                  "font-display font-extrabold text-xl w-12 text-right",
-                  isFailed && showFails ? "text-game-red" : r.isWinner ? "text-game-green" : "",
-                )}>
-                {isFailed ? (
-                  showFails ? (
-                    <X className="stroke-[3px] ml-auto text-game-red" />
-                  ) : (
-                    `+${r.points}p`
-                  )
-                ) : (
-                  `+${r.points}p`
-                )}
-              </div>
+              <div className={cn("font-display font-extrabold text-xl w-12 text-right", isFailed && showFails ? "text-game-red" : r.isWinner ? "text-game-green" : "")}>{isFailed ? showFails ? <X className="stroke-[3px] ml-auto text-game-red" /> : `+${r.points}p` : `+${r.points}p`}</div>
             </motion.div>
           );
         })}

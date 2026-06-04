@@ -1,7 +1,8 @@
 "use client";
 
 import PhaseTransition from "@/components/game/PhaseTransition";
-import { useImpostorGame } from "@/hooks/gamecontext";
+// import { useImpostorGame } from "@/hooks/gamecontext";
+import { useImpostorGame } from "@/hooks/newgamecontext";
 import { useLobbyContext } from "@/hooks/lobbycontext";
 import { useUserContext } from "@/hooks/usercontext";
 import { motion } from "framer-motion";
@@ -12,11 +13,10 @@ export function IntermediatePhase() {
   const { users } = useLobbyContext();
   const { user } = useUserContext();
 
-  if (!game || !game.voteResult || !user || !users) return null;
-  const voteResult = game.voteResult;
-  const votedOut = voteResult.voted_out;
+  if (!user || !users) return null;
+  const votedOut = game.intermediate_voted_out;
   const isEliminated = votedOut !== undefined;
-  const message = votedOut === undefined ? voteResult.message : votedOut === user.user_id ? `Du röstades ut` : `${users[votedOut].username} röstades ut.`;
+  const message = votedOut === undefined ? (game.intermediate_message ?? "") : votedOut === user.user_id ? `Du röstades ut` : `${users[votedOut].username} röstades ut.`;
 
   return (
     <PhaseTransition phaseKey="Intermediate">

@@ -2,7 +2,8 @@
 
 import PhaseTransition from "@/components/game/PhaseTransition";
 import { Button } from "@/components/ui/button";
-import { useImpostorGame } from "@/hooks/gamecontext";
+// import { useImpostorGame } from "@/hooks/gamecontext";
+import { useNewGameContext, type ImpostorGameResultPayload } from "@/hooks/newgamecontext";
 import { useLobbyContext } from "@/hooks/lobbycontext";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -41,17 +42,18 @@ function ImpostorTile({ username, background, word, badge, badgeColor }: { usern
 }
 
 export function ResultPhase() {
-  const game = useImpostorGame();
+  const { result: rawResult } = useNewGameContext();
   const { users, code } = useLobbyContext();
   const { user } = useUserContext();
   const { sendEvent } = useWebsocketContext();
   const [statsOpen, setStatsOpen] = useState(false);
-  if (!game || !game.result || !user || !users) return null;
+  if (!rawResult || !user || !users) return null;
 
-  const winners = game.result.winners;
-  const playerRoles = game.result.roles;
-  const words = game.result.words;
-  const normalSecretWord = game.result.normal_word;
+  const result = rawResult as ImpostorGameResultPayload;
+  const winners = result.winners;
+  const playerRoles = result.roles;
+  const words = result.words;
+  const normalSecretWord = result.normal_word;
   const winningRole = winners.length > 0 ? playerRoles[winners[0]] : null;
   const impostorsWon = winningRole === "impostor";
   const winningTeamText = impostorsWon ? "Impostors vann!" : "Normala spelare vann!";

@@ -3,31 +3,29 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useLobbyContext } from "@/hooks/lobbycontext";
-import { useGameContext } from "@/hooks/gamecontext";
+// import { useGameContext } from "@/hooks/gamecontext";
 
 import { ContextoGameView } from "./gamemodes/ContextoGameView";
 import { SynonymDuelView } from "./gamemodes/SynonymDuelView";
 import { AntiMatchView } from "./gamemodes/AntiMatchView";
 import { MainImpostorView } from "./gamemodes/MainImposterView";
+import { useNewGameContext } from "@/hooks/newgamecontext";
 
 export function GameView() {
-  const { mode } = useLobbyContext();
-  const { gameState } = useGameContext();
+  const { phase } = useLobbyContext();
+  const { game } = useNewGameContext();
   const router = useRouter();
-  const activeMode = mode ?? gameState?.mode ?? null;
 
   useEffect(() => {
-    if (!activeMode) router.push("/");
-  }, [activeMode, router]);
-
-  if (!activeMode) return null;
+    if (phase !== "game_started") router.push("/");
+  }, [phase, router]);
 
   return (
     <div className="w-full px-8 pt-5">
-      {activeMode === "impostor" && <MainImpostorView />}
-      {activeMode === "contexto_battle" && <ContextoGameView />}
-      {activeMode === "synonym_duel" && <SynonymDuelView />}
-      {activeMode === "anti_match" && <AntiMatchView />}
+      {game.mode === "impostor" && <MainImpostorView />}
+      {game.mode === "anti_match" && <AntiMatchView />}
+      {/* {game.mode === "contexto_battle" && <ContextoGameView />} */}
+      {/* {activeMode === "synonym_duel" && <SynonymDuelView />} */}
     </div>
   );
 }

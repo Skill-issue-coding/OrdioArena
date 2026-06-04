@@ -15,12 +15,12 @@
  * ```
  */
 
-import { ChatMessage, LobbyState } from "@/lib/game/types";
 import { ToastSucess } from "@/lib/toast-functions";
 import { WSSendEventType, WSSendPayloadMap, WSReceivedPayloadMap } from "@/lib/websocket/types";
 import { useRouter } from "next/navigation";
 import { createContext, ReactNode, useContext, useEffect, useState, useRef } from "react";
 import { useWebsocketContext } from "./websocketcontext";
+import { ChatMessage, LobbyState } from "@/lib/game/lobby";
 
 /**
  * Typed sendMessage function. The generic parameter T constrains the payload

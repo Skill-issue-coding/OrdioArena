@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
-import { useAntiMatchGame, usePhaseCountdown, usePhaseReady } from "@/hooks/gamecontext";
 import { GetReadyScreen } from "@/components/game/GetReadyScreen";
 import CountdownBar from "../CountdownBar";
 import { RoundResultPhase } from "../antimatch/RoundResultPhase";
@@ -10,44 +9,33 @@ import { FinalScorePhase } from "../antimatch/FinalScorePhase";
 import { InputPhase } from "../antimatch/InputPhase";
 import { useRouter } from "next/navigation";
 import { useLobbyContext } from "@/hooks/lobbycontext";
+import { useAntiMatchGame, useNewGameContext } from "@/hooks/newgamecontext";
+import { usePhaseCountdown, usePhaseReady } from "@/hooks/timers";
 
 export function AntiMatchView() {
   const game = useAntiMatchGame();
+  const { result } = useNewGameContext();
   const { code } = useLobbyContext();
   const router = useRouter();
 
-  const readyTime = game?.phaseState?.timers?.ready_time;
-
-  const isReady = usePhaseReady(readyTime);
-  const remainingMs = usePhaseCountdown(readyTime);
+  const isReady = usePhaseReady();
+  const remainingMs = usePhaseCountdown();
 
   useEffect(() => {
-    if (game?.resultState) router.push(`/lobby/${code}/game/result`);
-  }, [game?.resultState]);
-
-  if (!game || !game.phaseState) return null;
-
-  const currentPhase = game.phaseState.game_phase;
-
-  const needsReadyScreen = !isReady && currentPhase === "input";
-
-  if (needsReadyScreen) return <GetReadyScreen remainingMs={remainingMs} />;
+    if (result) router.push(`/lobby/${code}/game/result`);
+  }, [result]);
 
   if (!isReady) return <GetReadyScreen remainingMs={remainingMs} />;
 
-  //const phase = game.phaseState.game_phase;
+  const phase = game.phase;
 
   return (
     <div className="w-full space-y-6">
-      {/*phase !== "show_word" && phase !== "final_score" && phase !== "round_result" && <CountdownBar />*/}
-      {currentPhase === "input" && <CountdownBar />}
+      {phase === "input" && <CountdownBar />}
       <AnimatePresence mode="wait">
-        {/*phase === "input" && <InputPhase />*/}
-        {/*phase === "round_result" && <RoundResultPhase />*/}
-        {/*phase === "final_score" && <FinalScorePhase />*/}
-        {currentPhase === "input" && <InputPhase />}
-        {currentPhase === "round_result" && <RoundResultPhase />}
-        {/* {currentPhase === "result" && <FinalScorePhase />} */}
+        {phase === "input" && <InputPhase />}
+        {phase === "round_result" && <RoundResultPhase />}
+        {/* {phase === "result" && <FinalScorePhase />} */}
       </AnimatePresence>
     </div>
   );

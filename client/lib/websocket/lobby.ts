@@ -5,7 +5,9 @@
  * independent of any specific game mode.
  */
 
-import { ChatMessage, GameMode, LobbyState, User } from "@/lib/game/types";
+import { GameMode } from "@/lib/game/game";
+import { User } from "../game/user";
+import { ChatMessage, LobbyState } from "../game/lobby";
 
 // ---------------------------------------------------------------------------
 // Server → Client
