@@ -1,6 +1,17 @@
 import { LobbyContextProvider } from "@/hooks/lobbycontext";
-import { ReactNode } from "react";
+import { NewGameContextProvider } from "@/hooks/newgamecontext";
+import { ReactNode, Suspense } from "react";
+import LobbyChat from "@/components/lobby/LobbyChat";
 
 export default function LobbyContextLayoutWrapper({ children }: { children: ReactNode }) {
-  return <LobbyContextProvider>{children}</LobbyContextProvider>;
+  return (
+    <LobbyContextProvider>
+      <NewGameContextProvider>
+        {children}
+      </NewGameContextProvider>
+      <Suspense fallback={null}>
+        <LobbyChat />
+      </Suspense>
+    </LobbyContextProvider>
+  );
 }

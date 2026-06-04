@@ -11,11 +11,12 @@ import { useTheme } from "next-themes";
 import { motion } from "framer-motion";
 import { useUserContext } from "@/hooks/usercontext";
 import { popIn } from "@/lib/animation-util";
-import { useLobbyContext } from "@/hooks/lobbycontext";
+import { useOptionalLobbyContext } from "@/hooks/lobbycontext";
 
 export default function UserProfileButton() {
   const { user, updateUser } = useUserContext();
-  const { phase } = useLobbyContext();
+  const lobby = useOptionalLobbyContext();
+  const phase = lobby?.phase;
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [draftName, setDraftName] = useState("");

@@ -5,9 +5,8 @@ import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import UserProfileButton from "@/components/user/UserProfileButton";
 import { ThemeProvider } from "next-themes";
-import LobbyChat from "@/components/lobby/LobbyChat";
 import ThemedToaster from "@/components/themed-toaster";
-import { Suspense } from "react";
+// import { Suspense } from "react";
 import { WebSocketProvider } from "@/hooks/websocketcontext";
 import { UserProvider } from "@/hooks/usercontext";
 // import { LobbyContextProvider } from "@/hooks/lobbycontext";
@@ -61,7 +60,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", figtree.variable, geistHeading.variable, inter.variable, spaceGrotesk.variable, fredoka.variable, nunito.variable)}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", figtree.variable, geistHeading.variable, inter.variable, spaceGrotesk.variable, fredoka.variable, nunito.variable)}>
       <body className="flex flex-col min-h-full">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <WebSocketProvider>
@@ -70,9 +72,6 @@ export default function RootLayout({
               {/* <GameContextProvider> */}
               <TooltipProvider>
                 {children}
-                <Suspense fallback={null}>
-                  <LobbyChat />
-                </Suspense>
                 <UserProfileButton />
               </TooltipProvider>
               {/* </GameContextProvider> */}

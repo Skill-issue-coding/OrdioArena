@@ -19,10 +19,12 @@ export default function ResultPage() {
     );
   else
     return (
-      <div className="w-full space-y-6">
-        <AnimatePresence mode="wait">
-          <ResultPhase key="result" />
-        </AnimatePresence>
+      <div className="w-full px-8 pt-5">
+        <div className="w-full space-y-6">
+          <AnimatePresence mode="wait">
+            <ResultPhase key="result" />
+          </AnimatePresence>
+        </div>
       </div>
     );
 }

@@ -13,12 +13,15 @@ import { useWebsocketContext } from "@/hooks/websocketcontext";
 import Link from "next/link";
 import { useNewGameContext } from "@/hooks/newgamecontext";
 import { AntiMatchResult } from "@/lib/game/new-antimatch-types";
+import { useRouter } from "next/router";
 
 export function FinalScorePhase() {
   const { result } = useNewGameContext();
   const { users, code } = useLobbyContext();
   const { user } = useUserContext();
   const { sendEvent } = useWebsocketContext();
+
+  useEffect(() => { if (result) sendEvent("sync_request", null); }, [result]);
 
   if (!result || !("total_scores" in result) || !users || !user) return null;
 
@@ -38,8 +41,6 @@ export function FinalScorePhase() {
 
   const [first, second, third, ...rest] = leaderboard;
   const isWinner = first?.id === user.user_id;
-
-  useEffect(() => sendEvent("sync_request", null), []);
 
   return (
     <div className="flex flex-col items-center w-full max-w-2xl mx-auto mt-4 relative z-10 py-8">

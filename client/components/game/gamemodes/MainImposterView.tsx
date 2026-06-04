@@ -2,7 +2,7 @@
 
 import { AnimatePresence } from "framer-motion";
 // import { useImpostorGame, usePhaseCountdown, usePhaseReady } from "@/hooks/gamecontext";
-import { useImpostorGame, useNewGameContext } from "@/hooks/newgamecontext";
+import { useImpostorGame } from "@/hooks/newgamecontext";
 import { GetReadyScreen } from "@/components/game/GetReadyScreen";
 import { RevealPhase } from "../impostor/RevealPhase";
 import { DiscussionPhase } from "../impostor/DiscussionPhase";
@@ -10,23 +10,13 @@ import { InputPhase } from "../impostor/InputPhase";
 import { VotePhase } from "../impostor/VotePhase";
 import { IntermediatePhase } from "../impostor/IntermediatePhase";
 import CountdownBar from "../CountdownBar";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useLobbyContext } from "@/hooks/lobbycontext";
 import { usePhaseCountdown, usePhaseReady } from "@/hooks/timers";
 
 export const MainImpostorView = () => {
   const game = useImpostorGame();
-  const { result } = useNewGameContext();
-  const { code } = useLobbyContext();
-  const router = useRouter();
 
   const isReady = usePhaseReady();
   const remainingMs = usePhaseCountdown();
-
-  useEffect(() => {
-    if (result) router.push(`/lobby/${code}/game/result`);
-  }, [result]);
 
   if (!isReady) return <GetReadyScreen remainingMs={remainingMs} />;
 

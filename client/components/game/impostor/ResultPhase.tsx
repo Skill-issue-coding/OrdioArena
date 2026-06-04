@@ -47,6 +47,7 @@ export function ResultPhase() {
   const { user } = useUserContext();
   const { sendEvent } = useWebsocketContext();
   const [statsOpen, setStatsOpen] = useState(false);
+  useEffect(() => { if (rawResult) sendEvent("sync_request", null); }, [rawResult]);
   if (!rawResult || !user || !users) return null;
 
   const result = rawResult as ImpostorGameResultPayload;
@@ -63,7 +64,6 @@ export function ResultPhase() {
     .map(([id]) => id);
   const normalIds = Object.keys(users).filter((id) => playerRoles[id] !== "impostor");
 
-  useEffect(() => sendEvent("sync_request", null), []);
 
   return (
     <PhaseTransition phaseKey="result">

@@ -7,6 +7,7 @@ import { createContext, ReactNode, useContext, useEffect, useRef, useState } fro
 import { useWebsocketContext } from "./websocketcontext";
 import { useLobbyContext } from "./lobbycontext";
 import { toTimers } from "./timers";
+import { useRouter } from "next/navigation";
 
 // Wire payload shape for impostor result (differs from legacy ImpostorGameResult type)
 export type ImpostorGameResultPayload = {
@@ -53,14 +54,15 @@ export function useAntiMatchGame(): AntiMatchGameState {
 }
 
 export function NewGameContextProvider({ children }: { children: ReactNode }) {
-  const { mode } = useLobbyContext();
+  const { mode, code } = useLobbyContext();
   const { subscribe } = useWebsocketContext();
+  const router = useRouter();
+
   const [gameState, setGameState] = useState<ActiveGame["game"]>(DefaultEmptyGame(mode ?? "impostor"));
   const [gameResult, setGameResult] = useState<ActiveGame["result"]>(null);
 
   useEffect(() => {
     setGameState(DefaultEmptyGame(mode ?? "impostor"));
-    setGameResult(null);
 
     const unsubs: (() => void)[] = [];
 
@@ -78,6 +80,7 @@ export function NewGameContextProvider({ children }: { children: ReactNode }) {
             current_player: "",
             rounds: [{ submissions: {}, votes: {} }],
           });
+          router.push(`/lobby/${code}/game`);
         }),
       );
 
@@ -210,10 +213,16 @@ export function NewGameContextProvider({ children }: { children: ReactNode }) {
     unsubs.push(
       subscribe("game_result", (p) => {
         setGameResult(p as unknown as ActiveGame["result"]);
+        router.push(`/lobby/${code}/game/result`);
       }),
     );
 
-    unsubs.push(subscribe("game_started", () => setGameResult(null)));
+    unsubs.push(
+      subscribe("game_started", () => {
+        setGameResult(null);
+        if (mode !== "impostor") router.push(`/lobby/${code}/game`);
+      }),
+    );
 
     return () => unsubs.forEach((u) => u());
   }, [subscribe, mode]);

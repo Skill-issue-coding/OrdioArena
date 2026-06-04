@@ -31,7 +31,10 @@ const ChatButton = () => {
   const [readCount, setReadCount] = useState(0);
   const unreadBelow = Math.max(0, chatMessages.length - readCount);
 
-  const visible = location.startsWith("/lobby") && code && phase !== "game_started" && !location.endsWith("/game");
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const visible = mounted && location.startsWith("/lobby") && code && phase !== "game_started" && !location.endsWith("/game");
   const unread = Math.max(0, chatMessages.length - lastReadIndex);
 
   // Keep badge count (closed state) in sync and reset it when popover opens.

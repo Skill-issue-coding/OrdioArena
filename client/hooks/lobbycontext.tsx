@@ -64,6 +64,10 @@ export function useLobbyContext() {
   return context;
 }
 
+export function useOptionalLobbyContext() {
+  return useContext(LobbyContext);
+}
+
 /**
  * Provides the lobby context to all child components.
  * Must be nested inside WebSocketProvider.
@@ -112,15 +116,12 @@ export function LobbyContextProvider({ children }: { children: ReactNode }) {
       if (lobbyCodeRef.current) router.push(`/lobby/${lobbyCodeRef.current}`);
     });
 
-    const unsubGameStarted = subscribe("game_started", () => router.push(`/lobby/${lobbyCodeRef.current}/game`));
-
     return () => {
       unsubJoinError();
       unsubLeftLobby();
       unsubChat();
       unsubSync();
       unsubJoined();
-      unsubGameStarted();
     };
   }, [router, subscribe]);
 
