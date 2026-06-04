@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence } from "framer-motion";
-import { useAntiMatchGame, useImpostorGame, usePhaseCountdown, usePhaseReady } from "@/hooks/gamecontext";
+import { useAntiMatchGame, usePhaseCountdown, usePhaseReady } from "@/hooks/gamecontext";
 import { GetReadyScreen } from "@/components/game/GetReadyScreen";
 import CountdownBar from "../CountdownBar";
 import { RoundResultPhase } from "../antimatch/RoundResultPhase";
