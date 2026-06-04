@@ -7,12 +7,16 @@ import { RevealPhase } from "../impostor/RevealPhase";
 import { DiscussionPhase } from "../impostor/DiscussionPhase";
 import { InputPhase } from "../impostor/InputPhase";
 import { VotePhase } from "../impostor/VotePhase";
-import { ResultPhase } from "../impostor/ResultPhase";
 import { IntermediatePhase } from "../impostor/IntermediatePhase";
 import CountdownBar from "../CountdownBar";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useLobbyContext } from "@/hooks/lobbycontext";
 
 export const MainImpostorView = () => {
   const game = useImpostorGame();
+  const { code } = useLobbyContext();
+  const router = useRouter();
 
   const readyTime = game?.phaseState?.timers?.ready_time;
   const isReady = usePhaseReady(readyTime);
@@ -20,15 +24,9 @@ export const MainImpostorView = () => {
 
   // gamecontext preserves `result` across phase resets and builds gameState whenever
   // result is non-null, so this check is always stable regardless of render ordering.
-  if (game?.result) {
-    return (
-      <div className="w-full space-y-6">
-        <AnimatePresence mode="wait">
-          <ResultPhase key="result" />
-        </AnimatePresence>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (game?.result) router.push(`/lobby/${code}/game/result`);
+  }, [game?.result]);
 
   if (!isReady) return <GetReadyScreen remainingMs={remainingMs} />;
   if (!game || !game.phaseState) return null;

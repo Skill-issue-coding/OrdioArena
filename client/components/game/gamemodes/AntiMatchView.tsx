@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { useAntiMatchGame, usePhaseCountdown, usePhaseReady } from "@/hooks/gamecontext";
 import { GetReadyScreen } from "@/components/game/GetReadyScreen";
@@ -8,29 +8,22 @@ import CountdownBar from "../CountdownBar";
 import { RoundResultPhase } from "../antimatch/RoundResultPhase";
 import { FinalScorePhase } from "../antimatch/FinalScorePhase";
 import { InputPhase } from "../antimatch/InputPhase";
-
-type PhaseType = "input" | "round_result" | "final_score" | "show_word";
+import { useRouter } from "next/navigation";
+import { useLobbyContext } from "@/hooks/lobbycontext";
 
 export function AntiMatchView() {
-  //const [phase, setPhase] = useState<PhaseType>("input");
   const game = useAntiMatchGame();
+  const { code } = useLobbyContext();
+  const router = useRouter();
 
   const readyTime = game?.phaseState?.timers?.ready_time;
-
-  if (game?.resultState) {
-    return (
-      <div className="w-full space-y-6">
-        <AnimatePresence mode="wait">
-          <FinalScorePhase key="result" />
-        </AnimatePresence>
-      </div>
-    );
-  }
 
   const isReady = usePhaseReady(readyTime);
   const remainingMs = usePhaseCountdown(readyTime);
 
-  //console.log(game);
+  useEffect(() => {
+    if (game?.resultState) router.push(`/lobby/${code}/game/result`);
+  }, [game?.resultState]);
 
   if (!game || !game.phaseState) return null;
 
@@ -54,7 +47,7 @@ export function AntiMatchView() {
         {/*phase === "final_score" && <FinalScorePhase />*/}
         {currentPhase === "input" && <InputPhase />}
         {currentPhase === "round_result" && <RoundResultPhase />}
-        {currentPhase === "result" && <FinalScorePhase />}
+        {/* {currentPhase === "result" && <FinalScorePhase />} */}
       </AnimatePresence>
     </div>
   );

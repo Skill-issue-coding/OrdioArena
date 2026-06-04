@@ -25,14 +25,7 @@
  * ```
  */
 
-import {
-  ImpostorClientGameState,
-  ImpostorGameResult,
-  ImpostorPhaseUpdate,
-  ImpostorVoteUpdate,
-  ImpostorCycleUpdate,
-  ImpostorVoteResult,
-} from "@/lib/game/impostor-types";
+import { ImpostorClientGameState, ImpostorGameResult, ImpostorPhaseUpdate, ImpostorVoteUpdate, ImpostorCycleUpdate, ImpostorVoteResult } from "@/lib/game/impostor-types";
 import type { GameTimers } from "@/lib/game/types";
 import { WSReceivedPayloadMap } from "@/lib/websocket/types";
 import { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
@@ -208,6 +201,13 @@ export function GameContextProvider({ children }: { children: ReactNode }) {
   const [voteResult, setVoteResult] = useState<ImpostorVoteResult | null>(null);
   const [activePlayers, setActivePlayers] = useState<Record<string, boolean> | null>(null);
 
+  // Tracks which mode was active when `result` was last set. Used to detect stale results
+  // during the render cycle after mode changes — React state updates (setResult) are
+  // asynchronous, so there is always one render where mode has already flipped but result
+  // hasn't been cleared yet. Comparing resultModeRef.current === mode gives a synchronous
+  // null-guard without waiting for a useEffect cleanup.
+  const resultModeRef = useRef<string | null>(null);
+
   // Reset all game state when the lobby returns to the waiting room.
   // result is intentionally kept so ResultPhase stays mounted after game ends —
   // the player must click "Tillbaka till lobbyn" to leave. It is cleared when
@@ -222,22 +222,20 @@ export function GameContextProvider({ children }: { children: ReactNode }) {
     }
   }, [phase]);
 
-  // Clear stale result when mode changes so a previous game's result (e.g. impostor)
-  // can't bleed into a new game of a different mode (e.g. anti_match).
-  useEffect(() => {
-    setResult(null);
-    setRoundResultState(null);
-  }, [mode]);
-
   useEffect(() => {
     const unsubRound = subscribe("game_round_started", (payload) => {
-      setResult(null); // clear any result from the previous game
+      setResult(null);
+      resultModeRef.current = null;
+      setRoundResultState(null);
       setRoundState(payload);
       // active_players in game_round_started is the authoritative initial set for cycle 0.
       setActivePlayers((payload as ImpostorClientGameState).active_players ?? null);
     });
     const unsubPhase = subscribe("new_game_phase", setPhaseState);
-    const unsubResult = subscribe("game_result", setResult);
+    const unsubResult = subscribe("game_result", (payload) => {
+      resultModeRef.current = mode;
+      setResult(payload);
+    });
     const unsubVoteUpdate = subscribe("impostor_vote_update", (payload: ImpostorVoteUpdate) => {
       if (mode === "impostor") {
         setPhaseState((prev) => {
@@ -287,15 +285,19 @@ export function GameContextProvider({ children }: { children: ReactNode }) {
   //
   // We also build gameState when result is non-null even if phase has reverted to
   // the lobby phase — this keeps ResultPhase alive until the user navigates away.
+  // Null out result if it belongs to a different mode — guards against the one render
+  // cycle where mode has already flipped but the result state update hasn't landed yet.
+  const safeResult = resultModeRef.current === mode ? result : null;
+
   let gameState: ActiveGameState = null;
-  if (phase === "game_started" || result !== null) {
+  if (phase === "game_started" || safeResult !== null) {
     switch (mode) {
       case "impostor":
         gameState = {
           mode: "impostor",
           roundState: roundState as ImpostorClientGameState | null,
           phaseState: phaseState as ImpostorPhaseUpdate | null,
-          result: result as ImpostorGameResult | null,
+          result: safeResult as ImpostorGameResult | null,
           cycleState: cycleState,
           voteResult: voteResult,
           activePlayers: activePlayers,
@@ -306,7 +308,7 @@ export function GameContextProvider({ children }: { children: ReactNode }) {
           mode: "anti_match",
           phaseState: phaseState as AntiMatchPhaseUpdate | null,
           roundResultState: roundResultState as AntiMatchRoundResult | null,
-          resultState: result as AntiMatchGameResult | null,
+          resultState: safeResult as AntiMatchGameResult | null,
         };
         break;
     }
