@@ -40,10 +40,11 @@ func NewLobby(id string) *GameLobby {
 		ProfileUpdateRequests: make(chan struct{}, 8),
 		Phase:                 LobbyPhase,
 		Users:                 make(map[uuid.UUID]*UserProfile),
-		StartGameRequests:     make(chan *Client),
-		GameInputs:            make(chan game.GameInput, 16),
-		GameOutputs:           make(chan game.GameOutput, 32),
-		GameDone:              make(chan struct{}, 1),
+		// Game Related channels
+		StartGameRequests: make(chan *Client),
+		GameInputs:        make(chan game.GameInput, 16),
+		GameOutputs:       make(chan game.GameOutput, 32),
+		GameDone:          make(chan struct{}, 1),
 	}
 	lobby.SetMode(ModeImpostor)
 	return lobby
@@ -176,6 +177,7 @@ func (lobby *GameLobby) Run() {
 			for id := range lobby.Users {
 				players = append(players, id)
 			}
+
 			onDone := func() {
 				select {
 				case lobby.GameDone <- struct{}{}:

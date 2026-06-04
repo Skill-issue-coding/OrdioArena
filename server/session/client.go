@@ -45,6 +45,7 @@ func (c *Client) WritePump() {
 	defer func() {
 		ticker.Stop()
 		c.Conn.Close()
+		c.Hub.Unregister <- c
 	}()
 
 	for {
