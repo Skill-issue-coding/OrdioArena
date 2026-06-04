@@ -68,9 +68,28 @@ type GameResultPayload struct {
 
 type AntiMatchPhaseUpdatePayload struct {
 	GamePhasePayload `json:"timers"`
-	Phase      AntiMatchPhaseType `json:"game_phase"`
-	TargetWord string             `json:"target_word"`
-	Submissions      map[uuid.UUID]bool `json:"submissions"`
+	Phase      		AntiMatchPhaseType `json:"game_phase"`
+	TargetWord 		string             `json:"target_word"`
+	Submissions		map[uuid.UUID]bool `json:"submissions"`
+	CurrentRound	int                `json:"current_round"`
+	TotalRounds     int                `json:"total_rounds"`
+}
+
+type AntiMatchPlayerResult struct {
+	Word        string `json:"word"`
+	Score       int    `json:"score"`
+	IsDuplicate bool   `json:"is_duplicate"`
+	TotalScore  int    `json:"total_score"`
+}
+
+type AntiMatchRoundResultPayload struct {
+	GamePhasePayload `json:"timers"`
+	Phase            AntiMatchPhaseType                  `json:"game_phase"`
+	TargetWord       string                              `json:"target_word"`
+	Results          map[uuid.UUID]AntiMatchPlayerResult `json:"results"`
+	Winner           *uuid.UUID                          `json:"winner,omitempty"`
+	CurrentRound     int                                 `json:"current_round"`
+	TotalRounds      int                                 `json:"total_rounds"`
 }
 
 // =============================================================================

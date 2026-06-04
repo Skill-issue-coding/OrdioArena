@@ -25,6 +25,8 @@ export function InputPhase() {
   const targetWord = gameState.phaseState.target_word;
   const submissions = gameState.phaseState.submissions ?? {};
   const hasSubmitted = submissions[user.user_id] ?? false;
+  const currentRound = gameState.phaseState.current_round;
+  const totalRounds = gameState.phaseState.total_rounds;
 
   const sendWordSubmission = () => {
     if (hasSubmitted) return;
@@ -38,7 +40,9 @@ export function InputPhase() {
   return (
     <div className="flex flex-col items-center w-full max-w-2xl mx-auto mt-8 relative z-10">
       <div className="text-center mb-8">
-        <p className="font-display text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Målord</p>
+        <p className="font-display text-sm font-bold text-muted-foreground uppercase tracking-widest mb-2">
+          Runda {currentRound}/{totalRounds}
+        </p>
         <h1 className="font-display text-6xl font-extrabold text-game-green tracking-tight mb-4">{targetWord}</h1>
         <p className="font-body font-semibold text-muted-foreground">
           Var närmast — men <span className="text-foreground font-bold">unik</span>. Dubbletter ger 0 poäng.
@@ -73,7 +77,11 @@ export function InputPhase() {
               disabled={hasSubmitted}
               className="w-full h-full text-center font-display font-bold text-xl px-4 border-2 border-primary rounded-lg bg-muted shadow-sm focus:outline-none focus:ring-4 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50 disabled:opacity-50"
             />
-            <Button onClick={sendWordSubmission} disabled={!inputValue.trim() || hasSubmitted} className="h-full aspect-square shrink-0 rounded-lg" aria-label="Skicka meddelande">
+            <Button
+              onClick={sendWordSubmission}
+              disabled={!inputValue.trim() || hasSubmitted}
+              className="h-full aspect-square shrink-0 rounded-lg"
+              aria-label="Skicka meddelande">
               <Send className="size-6" />
             </Button>
           </div>
@@ -93,7 +101,11 @@ export function InputPhase() {
           return (
             <div key={p.user_id} className="relative flex flex-col items-center">
               <div className={!isSubmitted && !isSelf ? "opacity-50 transition-opacity" : ""}>
-                <PlayerAvatar name={p.username} color={p.background} className="w-10 h-10 border-3 font-display font-bold" />
+                <PlayerAvatar
+                  name={p.username}
+                  color={p.background}
+                  className="w-10 h-10 border-3 font-display font-bold"
+                />
               </div>
               {isSubmitted && (
                 <div className="absolute -bottom-6 w-5 h-5 rounded-full flex items-center justify-center">

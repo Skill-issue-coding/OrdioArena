@@ -21,7 +21,7 @@ export function AntiMatchView() {
 
   console.log(game);
 
-  // TODO: Later, handle the result phase later
+  // TODO: Later, handle the result phase
   // if (game?.result) return <FinalScorePhase />;
 
   if (!isReady) return <GetReadyScreen remainingMs={remainingMs} />;

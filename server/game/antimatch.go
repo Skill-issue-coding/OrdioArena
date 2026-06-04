@@ -1,7 +1,9 @@
 package game
 
 import (
+	"math"
 	"server/events"
+	"server/util"
 	"server/words"
 	"time"
 
@@ -92,6 +94,7 @@ type AntiMatchGame struct {
 	phase            *Phase[AntiMatchPhaseType]
 	roundResultPhase *Phase[AntiMatchPhaseType] // kept to break the loop on game over
 	resultPhase      *Phase[AntiMatchPhaseType] // terminal node
+	TotalScores 	 map[uuid.UUID]int
 }
 
 // matchThreshold returns the cosine-distance cutoff for this game's target word.
@@ -136,6 +139,7 @@ func NewAntimatchGame(
 		rounds:           rounds,
 		roundNumber:      0,
 		players:          createPlayerMap(players),
+		TotalScores:      make(map[uuid.UUID]int),
 	}
 }
 
@@ -195,6 +199,8 @@ func (g *AntiMatchGame) sendGamePhaseUpdate() {
 		Phase:            g.phase.Phase,
 		TargetWord:       g.target.Word,
 		Submissions:      subs,
+		CurrentRound:     g.roundNumber + 1,
+		TotalRounds:      int(g.settings.Rounds),
 	}
 	
 	g.Broadcast(events.GameNewPhaseEvent, payload)
@@ -204,14 +210,108 @@ func (g *AntiMatchGame) advancePhase() {
 	switch g.phase.Phase {
 	case AntiMatchPhaseInput:
 		// TODO: score submissions against matchThreshold(), broadcast round result
+
+		// Count word frequencies to find duplicates
+		entries := g.rounds[g.roundNumber].entries
+		wordCounts := make(map[string]int)
+		for _, word := range entries {
+			wordCounts[word]++
+		}
+
+		results := make(map[uuid.UUID]AntiMatchPlayerResult)
+		var roundWinner *uuid.UUID
+		highestScore := -1
+
+		// The target's vector for calculating distance
+		targetEntry, _ := g.dict.Lookup(g.target.Word)
+		targetVec := targetEntry.WordVector
+
+		for id, word := range entries {
+			isDuplicate := wordCounts[word] > 1
+			score := 0
+
+			if !isDuplicate {
+				wordEntry, exists := g.dict.Lookup(word)
+				if !exists {
+    				continue
+				}
+				wordVec := wordEntry.WordVector
+				// CosineDistance returns [0, 2]. 0 is identical, 2 is opposite.
+				dist := util.CosineDistance(targetVec, wordVec)
+				
+				// Scale distance to a 0-100 point score. 
+				// Example: dist of 0.15 becomes 100 - 15 = 85 points.
+				score = int(math.Max(0, 100.0-(dist*100.0)))
+			}
+
+			g.TotalScores[id] += score
+
+			// Determine the winner
+			if score > highestScore && !isDuplicate {
+				highestScore = score
+				winnerID := id 
+				roundWinner = &winnerID
+			}
+
+			results[id] = AntiMatchPlayerResult{
+				Word:        word,
+				Score:       score,
+				IsDuplicate: isDuplicate,
+				TotalScore:  g.TotalScores[id],
+			}
+		}
+
+		// Fill in zeros for non submitings
+		for id := range g.players {
+			if _, submitted := entries[id]; !submitted {
+				results[id] = AntiMatchPlayerResult{
+					Word:        "-",
+					Score:       0,
+					IsDuplicate: false,
+					TotalScore:  g.TotalScores[id],
+				}
+			}
+		}
+
 		g.phase = g.phase.Next // → round_result
 		g.StartPhase(SHOW_ROUND_RESULT_DURATION) // Start timer for results
+
+		timers := GamePhasePayload{
+			StartTime: g.startTime.UnixMilli(),
+			ReadyTime: g.startTime.Add(SYNC_DELAY).UnixMilli(), 
+			EndTime:   g.endTime.UnixMilli(),
+		}
+
+		payload := AntiMatchRoundResultPayload{
+			GamePhasePayload: timers,
+			Phase:            g.phase.Phase,
+			TargetWord:       g.target.Word,
+			Results:          results,
+			Winner:           roundWinner,
+			CurrentRound:     g.roundNumber + 1,
+			TotalRounds:      int(g.settings.Rounds),
+		}
+
+		g.Broadcast(events.GameRoundResultEvent, payload)
+
 		g.sendGamePhaseUpdate() // Tell frontend to change views
 	case AntiMatchPhaseRoundResult:
-		g.phase = g.phase.Next // → input (circular)
-		// TODO: start next round
-		g.phase = g.phase.Next
+		g.roundNumber++
+
+		if g.roundNumber >= int(g.settings.Rounds) {
+			// Transition to Final Result
+			g.phase = g.resultPhase
+			g.advancePhase()
+		} else {
+			// Start next round
+			g.phase = g.phase.Next 
+			target, _ := pickAntiMatchTarget(g.dict)
+			g.target = target
+			g.StartPhase(g.settings.InputDuration)
+			g.sendGamePhaseUpdate()
+		}
 	case AntiMatchPhaseResult:
+		// TODO: Build Final Score Payload
 		g.Stop()
 	}
 }

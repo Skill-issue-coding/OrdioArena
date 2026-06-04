@@ -25,13 +25,20 @@
  * ```
  */
 
-import { ImpostorClientGameState, ImpostorGameResult, ImpostorPhaseUpdate, ImpostorVoteUpdate, ImpostorCycleUpdate, ImpostorVoteResult } from "@/lib/game/impostor-types";
+import {
+  ImpostorClientGameState,
+  ImpostorGameResult,
+  ImpostorPhaseUpdate,
+  ImpostorVoteUpdate,
+  ImpostorCycleUpdate,
+  ImpostorVoteResult,
+} from "@/lib/game/impostor-types";
 import type { GameTimers } from "@/lib/game/types";
 import { WSReceivedPayloadMap } from "@/lib/websocket/types";
 import { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { useLobbyContext } from "./lobbycontext";
 import { useWebsocketContext } from "./websocketcontext";
-import { AntiMatchPhaseUpdate } from "@/lib/game/antimatch-types";
+import { AntiMatchPhaseUpdate, AntiMatchRoundResult } from "@/lib/game/antimatch-types";
 
 /**
  * Discriminated union of per-mode game state.
@@ -54,6 +61,7 @@ export type ActiveGameState =
   | {
       mode: "anti_match";
       phaseState: AntiMatchPhaseUpdate | null;
+      roundResultState: AntiMatchRoundResult | null;
     }
   | null;
 
@@ -193,6 +201,7 @@ export function GameContextProvider({ children }: { children: ReactNode }) {
   const [roundState, setRoundState] = useState<WSReceivedPayloadMap["game_round_started"] | null>(null);
   const [phaseState, setPhaseState] = useState<WSReceivedPayloadMap["new_game_phase"] | null>(null);
   const [result, setResult] = useState<WSReceivedPayloadMap["game_result"] | null>(null);
+  const [roundResultState, setRoundResultState] = useState<unknown | null>(null);
 
   const [cycleState, setCycleState] = useState<ImpostorCycleUpdate | null>(null);
   const [voteResult, setVoteResult] = useState<ImpostorVoteResult | null>(null);
@@ -246,6 +255,12 @@ export function GameContextProvider({ children }: { children: ReactNode }) {
         setVoteResult(payload);
       }
     });
+    const unsubRoundResult = subscribe("game_round_result", (payload) => {
+      if (mode === "anti_match") {
+        setPhaseState(payload); // We also update phaseState so the timers/phase strings stay in sync
+        setRoundResultState(payload);
+      }
+    });
 
     return () => {
       unsubRound();
@@ -254,6 +269,7 @@ export function GameContextProvider({ children }: { children: ReactNode }) {
       unsubVoteUpdate();
       unsubNewCycle();
       unsubVoteResult();
+      unsubRoundResult();
     };
   }, [subscribe, mode]);
 
@@ -281,6 +297,7 @@ export function GameContextProvider({ children }: { children: ReactNode }) {
         gameState = {
           mode: "anti_match",
           phaseState: phaseState as AntiMatchPhaseUpdate | null,
+          roundResultState: roundResultState as AntiMatchRoundResult | null,
         };
         break;
     }

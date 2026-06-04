@@ -12,11 +12,23 @@ export type AntiMatchPhaseUpdate = {
   game_phase: AntiMatchPhaseType;
   target_word: string;
   submissions?: Record<string, boolean>;
+  current_round: number;
+  total_rounds: number;
+};
+
+export type AntiMatchPlayerResult = {
+  word: string;
+  score: number;
+  is_duplicate: boolean;
+  total_score: number;
 };
 
 export type AntiMatchRoundResult = {
   timers: GameTimers;
-  player_round_submissions: Record<string, PlayerSubmissionScore>;
-  players_eliminated: Record<string, null>;
-  winner: string;
+  game_phase: AntiMatchPhaseType;
+  target_word: string;
+  results: Record<string, AntiMatchPlayerResult>;
+  winner?: string;
+  current_round: number;
+  total_rounds: number;
 };
