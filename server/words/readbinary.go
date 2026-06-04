@@ -27,8 +27,6 @@ var (
 )
 
 // ReadBinaryFiles loads vocab.bin + vocab.json + meta.json produced by stage 6.
-// If vocab_query.bin is present (dual=true in meta.json), query vectors are loaded
-// into WordEntry.QueryVector for asymmetric passage/query similarity.
 // Returns nil if the required binary files are absent (caller falls back to CSV loader).
 func ReadBinaryFiles() map[string]WordEntry {
 	for _, p := range []string{META_PATH, VOCAB_JSON, VOCAB_BIN} {
