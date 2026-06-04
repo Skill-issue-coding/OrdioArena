@@ -12,7 +12,8 @@ import (
 type GameSetting string
 
 const (
-	MAXIMUM_LOBBY_SIZE int = 12
+	MAXIMUM_LOBBY_SIZE            int = 12
+	MIN_NUM_PLAYERS_TO_START_GAME int = 3
 
 	INPUT_DURATION      GameSetting = "input_duration"
 	DISCUSSION_DURATION GameSetting = "discussion_duration"
@@ -168,7 +169,7 @@ func (lobby *GameLobby) Run() {
 				continue
 			}
 
-			if len(lobby.Users) < game.IMPOSTOR_MINIMUM_PLAYER_COUNT {
+			if len(lobby.Users) < MIN_NUM_PLAYERS_TO_START_GAME {
 				client.SendError("Inte tillräckligt med spelare för att starta spelet.")
 				continue
 			}
