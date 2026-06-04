@@ -222,6 +222,13 @@ export function GameContextProvider({ children }: { children: ReactNode }) {
     }
   }, [phase]);
 
+  // Clear stale result when mode changes so a previous game's result (e.g. impostor)
+  // can't bleed into a new game of a different mode (e.g. anti_match).
+  useEffect(() => {
+    setResult(null);
+    setRoundResultState(null);
+  }, [mode]);
+
   useEffect(() => {
     const unsubRound = subscribe("game_round_started", (payload) => {
       setResult(null); // clear any result from the previous game
