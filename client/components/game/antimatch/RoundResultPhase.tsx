@@ -6,9 +6,11 @@ import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 import { motion } from "framer-motion";
 import { popIn } from "@/lib/animation-util";
+import { useGameContext } from "@/hooks/gamecontext";
+import { useLobbyContext } from "@/hooks/lobbycontext";
+import { useUserContext } from "@/hooks/usercontext";
 
 // Mock Data
-const MOCK_TARGET = "kärlek";
 const MOCK_RESULTS = [
   { id: "2", name: "Oskar", color: "#4fd1c5", word: "romantik", points: 98, isDuplicate: false, rank: 1 },
   { id: "4", name: "Saga", color: "#10b981", word: "hjärta", points: 0, isDuplicate: true, rank: 4 },
@@ -20,6 +22,13 @@ const MOCK_RESULTS = [
 export function RoundResultPhase() {
   const [results, setResults] = useState(MOCK_RESULTS);
   const [showFails, setShowFails] = useState(false);
+  const { gameState } = useGameContext();
+  const { users } = useLobbyContext();
+  const { user } = useUserContext();
+
+  if (gameState?.mode !== "anti_match" || !gameState.phaseState || !users || !user) return null;
+
+  const word = gameState.phaseState.target_word;
 
   useEffect(() => {
     // 1. Calculate when the final popIn animation settles
@@ -59,7 +68,7 @@ export function RoundResultPhase() {
   return (
     <div className="flex flex-col items-center w-full max-w-2xl mx-auto mt-8 relative z-10">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="text-center mb-8">
-        <h2 className="font-display text-3xl font-extrabold mb-2">Resultat till: "{MOCK_TARGET}"</h2>
+        <h2 className="font-display text-3xl font-extrabold mb-2">Resultat till: "{word}"</h2>
         <p className="font-body font-semibold text-muted-foreground">"hjärta" x2</p>
       </motion.div>
 
@@ -90,7 +99,11 @@ export function RoundResultPhase() {
               className={cn(
                 "flex items-center gap-4 p-3 rounded-xl border-2 transition-colors duration-500 bg-card relative",
                 // Background logic updated: only turn red if it failed AND showFails is true
-                isFailed && showFails ? "border-game-red bg-linear-to-r from-game-red/20 to-game-red/10" : isWinner ? "border-game-green bg-linear-to-r from-game-green/20 to-game-green/10 shadow-lg shadow-game-green/10 z-10" : "border-border",
+                isFailed && showFails
+                  ? "border-game-red bg-linear-to-r from-game-red/20 to-game-red/10"
+                  : isWinner
+                    ? "border-game-green bg-linear-to-r from-game-green/20 to-game-green/10 shadow-lg shadow-game-green/10 z-10"
+                    : "border-border",
               )}>
               <div className="w-6 text-center font-display font-extrabold text-xl">{r.rank}</div>
 
@@ -99,10 +112,31 @@ export function RoundResultPhase() {
                 <PlayerAvatar name={r.name} color={r.color} className="w-9 h-9 border-3 font-display font-bold" />
 
                 {isFailed && showFails && (
-                  <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }} className="absolute inset-0 rounded-full flex items-center justify-center shadow-sm">
-                    <svg viewBox="0 0 24 24" className="size-16 text-game-red" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                      <motion.path d="M16 8L8 16" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.25, ease: "easeOut" }} />
-                      <motion.path d="M8 8L16 16" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.25, delay: 0.1, ease: "easeOut" }} />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute inset-0 rounded-full flex items-center justify-center shadow-sm">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="size-16 text-game-red"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round">
+                      <motion.path
+                        d="M16 8L8 16"
+                        initial={{ pathLength: 0 }}
+                        animate={{ pathLength: 1 }}
+                        transition={{ duration: 0.25, ease: "easeOut" }}
+                      />
+                      <motion.path
+                        d="M8 8L16 16"
+                        initial={{ pathLength: 0 }}
+                        animate={{ pathLength: 1 }}
+                        transition={{ duration: 0.25, delay: 0.1, ease: "easeOut" }}
+                      />
                     </svg>
                   </motion.div>
                 )}
@@ -112,10 +146,20 @@ export function RoundResultPhase() {
                 <div className="relative inline-block w-max">
                   <div className="font-display font-bold text-xs text-muted-foreground">{r.name}</div>
                   {/* Animated Strikethrough for Username */}
-                  {isFailed && showFails && <motion.div className="absolute top-1/2 left-[-5%] right-[-5%] h-0.5 bg-game-red origin-left rounded-full" initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.35, ease: "easeInOut" }} />}
+                  {isFailed && showFails && (
+                    <motion.div
+                      className="absolute top-1/2 left-[-5%] right-[-5%] h-0.5 bg-game-red origin-left rounded-full"
+                      initial={{ scaleX: 0 }}
+                      animate={{ scaleX: 1 }}
+                      transition={{ duration: 0.35, ease: "easeInOut" }}
+                    />
+                  )}
                 </div>
                 <div className="font-display font-extrabold text-xl truncate flex items-center gap-2">
-                  "{r.word}"{r.isDuplicate && <span className="text-[10px] font-display font-extrabold text-game-red uppercase tracking-wider">· Dubblett</span>}
+                  "{r.word}"
+                  {r.isDuplicate && (
+                    <span className="text-[10px] font-display font-extrabold text-game-red uppercase tracking-wider">· Dubblett</span>
+                  )}
                 </div>
               </div>
 
