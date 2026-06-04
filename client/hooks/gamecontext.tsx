@@ -38,7 +38,7 @@ import { WSReceivedPayloadMap } from "@/lib/websocket/types";
 import { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { useLobbyContext } from "./lobbycontext";
 import { useWebsocketContext } from "./websocketcontext";
-import { AntiMatchPhaseUpdate, AntiMatchRoundResult } from "@/lib/game/antimatch-types";
+import { AntiMatchPhaseUpdate, AntiMatchRoundResult, AntiMatchGameResult } from "@/lib/game/antimatch-types";
 
 /**
  * Discriminated union of per-mode game state.
@@ -62,6 +62,7 @@ export type ActiveGameState =
       mode: "anti_match";
       phaseState: AntiMatchPhaseUpdate | null;
       roundResultState: AntiMatchRoundResult | null;
+      resultState: AntiMatchGameResult | null;
     }
   | null;
 
@@ -298,6 +299,7 @@ export function GameContextProvider({ children }: { children: ReactNode }) {
           mode: "anti_match",
           phaseState: phaseState as AntiMatchPhaseUpdate | null,
           roundResultState: roundResultState as AntiMatchRoundResult | null,
+          resultState: result as AntiMatchGameResult | null,
         };
         break;
     }

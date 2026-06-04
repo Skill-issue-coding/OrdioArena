@@ -92,6 +92,10 @@ type AntiMatchRoundResultPayload struct {
 	TotalRounds      int                                 `json:"total_rounds"`
 }
 
+type AntiMatchGameResultPayload struct {
+	TotalScores map[uuid.UUID]int `json:"total_scores"`
+}
+
 // =============================================================================
 // Client → Server payload types
 // =============================================================================

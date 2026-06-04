@@ -3,11 +3,7 @@
  * WebSocket event types for the Anti-Match game mode (server → client).
  */
 
-import {
-  AntiMatchPhaseUpdate,
-  AntiMatchRoundResult,
-  // AntiMatchGameResult (You will import this later when you build the final score screen)
-} from "@/lib/game/antimatch-types";
+import { AntiMatchPhaseUpdate, AntiMatchRoundResult, AntiMatchGameResult } from "@/lib/game/antimatch-types";
 
 // ---------------------------------------------------------------------------
 // Server → Client
@@ -23,5 +19,9 @@ export type AntiMatchWSReceivedEvent =
       /** Broadcast when a round ends, revealing scores, duplicates, and the winner */
       type: "game_round_result";
       payload: AntiMatchRoundResult;
+    }
+  | {
+      /** Broadcast when the game ends, revealing final scores and the pole positions */
+      type: "game_result";
+      payload: AntiMatchGameResult;
     };
-// TODO: add the "game_result" event here later!

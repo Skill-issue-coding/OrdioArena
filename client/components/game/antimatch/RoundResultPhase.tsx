@@ -5,147 +5,92 @@ import { PlayerAvatar } from "@/components/lobby/PlayerList";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 import { motion } from "framer-motion";
-import { popIn } from "@/lib/animation-util";
 import { useGameContext } from "@/hooks/gamecontext";
 import { useLobbyContext } from "@/hooks/lobbycontext";
 import { useUserContext } from "@/hooks/usercontext";
-
-// Mock Data
-const MOCK_RESULTS = [
-  { id: "2", name: "Oskar", color: "#4fd1c5", word: "romantik", points: 98, isDuplicate: false, rank: 1 },
-  { id: "4", name: "Saga", color: "#10b981", word: "hjärta", points: 0, isDuplicate: true, rank: 4 },
-  { id: "1", name: "Du", color: "#8b5cf6", word: null, points: 0, isDuplicate: false, rank: 3 },
-  { id: "3", name: "Astrid", color: "#fbd38d", word: "rosor", points: 91, isDuplicate: false, rank: 2 },
-  { id: "5", name: "Nils", color: "#f6ad55", word: "hjärta", points: 0, isDuplicate: true, rank: 5 },
-];
+import { useAntiMatchGame } from "@/hooks/gamecontext";
 
 export function RoundResultPhase() {
-  const [results, setResults] = useState(MOCK_RESULTS);
   const [showFails, setShowFails] = useState(false);
   const { gameState } = useGameContext();
   const { users } = useLobbyContext();
   const { user } = useUserContext();
+  const game = useAntiMatchGame();
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowFails(true), 1200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!game?.roundResultState || !users) return null;
+
+  const { target_word, results, winner } = game.roundResultState;
+
+  const sortedResults = Object.entries(results)
+    .map(([userId, result]) => ({
+      id: userId,
+      name: users[userId]?.username || "Okänd",
+      color: users[userId]?.background || "#ccc",
+      word: result.word === "---" ? null : result.word,
+      points: result.score,
+      isDuplicate: result.is_duplicate,
+      isWinner: userId === winner,
+    }))
+    .sort((a, b) => {
+      // Duplicates and missing words go to the bottom
+      if (a.isDuplicate && !b.isDuplicate) return 1;
+      if (!a.isDuplicate && b.isDuplicate) return -1;
+      if (!a.word && b.word) return 1;
+      if (a.word && !b.word) return -1;
+      // Otherwise sort by highest points
+      return b.points - a.points;
+    })
+    // Assign rank based on sorted order
+    .map((res, index) => ({ ...res, rank: index + 1 }));
+
+  // Find duplicates to list them in the subheader
+  const duplicateWords = Array.from(new Set(sortedResults.filter((r) => r.isDuplicate).map((d) => d.word)));
+  const duplicateText =
+    duplicateWords.length > 0 ? duplicateWords.map((w) => `"${w}"`).join(" · ") + " (Dubblett)" : "Alla ord är unika!";
 
   if (gameState?.mode !== "anti_match" || !gameState.phaseState || !users || !user) return null;
 
-  const word = gameState.phaseState.target_word;
-
-  useEffect(() => {
-    // 1. Calculate when the final popIn animation settles
-    // Max delay is ~1.65s + ~0.55s animation duration = ~2.2s (2200ms)
-    const ANIMATION_COMPLETE_MS = 2200;
-
-    // 2. Show X, strikethrough, and red background (0.25s after animations finish)
-    const failTimer = setTimeout(() => {
-      setShowFails(true);
-    }, ANIMATION_COMPLETE_MS + 150);
-
-    // 3. Reorder the list (0.4s after the fail indicators are shown)
-    const sortTimer = setTimeout(
-      () => {
-        setResults((prev) => {
-          return [...prev].sort((a, b) => {
-            const aFailed = a.isDuplicate || a.word === null;
-            const bFailed = b.isDuplicate || b.word === null;
-
-            if (aFailed && !bFailed) return 1;
-            if (!aFailed && bFailed) return -1;
-
-            // Preserve the original rank order if they share the same fail state
-            return a.rank - b.rank;
-          });
-        });
-      },
-      ANIMATION_COMPLETE_MS + 150 + 50,
-    );
-
-    return () => {
-      clearTimeout(failTimer);
-      clearTimeout(sortTimer);
-    };
-  }, []);
-
   return (
     <div className="flex flex-col items-center w-full max-w-2xl mx-auto mt-8 relative z-10">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="text-center mb-8">
-        <h2 className="font-display text-3xl font-extrabold mb-2">Resultat till: "{word}"</h2>
-        <p className="font-body font-semibold text-muted-foreground">"hjärta" x2</p>
-      </motion.div>
+      <div className="text-center mb-8">
+        <h2 className="font-display text-3xl font-extrabold mb-2">Resultat: "{target_word}"</h2>
+        <p className="font-body font-semibold text-muted-foreground">{duplicateText}</p>
+      </div>
 
       <div className="w-full flex flex-col gap-3 mb-8">
-        {results.map((r, idx) => {
-          const isWinner = r.rank === 1;
-          const isFailed = r.isDuplicate || r.word === null;
-
-          // Calculate the original entrance delay relative to the original mock array
-          // so the initial render is identical, regardless of how they are sorted later.
-          const originalIdx = MOCK_RESULTS.findIndex((mock) => mock.id === r.id);
-          const delay = 0.25 * (MOCK_RESULTS.length - originalIdx);
-          const duration = idx === 0 ? 0.2 : 0.25;
-          const strength = idx === 0 ? 1.15 : 1;
-
-          const pop = popIn({ delay, duration, strength });
+        {sortedResults.map((r, i) => {
+          const isFailed = r.isDuplicate || !r.word;
 
           return (
             <motion.div
-              layout // This makes the div automatically glide to its new position when the array sorts
               key={r.id}
-              initial={pop.initial}
-              animate={pop.animate}
-              transition={{
-                ...pop.transition,
-                layout: { type: "spring", stiffness: 350, damping: 30 }, // Fast but smooth layout transition
-              }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1, duration: 0.4 }}
               className={cn(
-                "flex items-center gap-4 p-3 rounded-xl border-2 transition-colors duration-500 bg-card relative",
-                // Background logic updated: only turn red if it failed AND showFails is true
+                "flex items-center gap-4 p-4 rounded-2xl border-2 transition-all duration-500",
                 isFailed && showFails
-                  ? "border-game-red bg-linear-to-r from-game-red/20 to-game-red/10"
-                  : isWinner
-                    ? "border-game-green bg-linear-to-r from-game-green/20 to-game-green/10 shadow-lg shadow-game-green/10 z-10"
-                    : "border-border",
+                  ? "border-game-red bg-game-red/5"
+                  : r.isWinner
+                    ? "border-game-green bg-game-green/10"
+                    : "border-border bg-card",
               )}>
               <div className="w-6 text-center font-display font-extrabold text-xl">{r.rank}</div>
 
-              {/* Avatar + Animated Overlay Wrapper */}
-              <div className="relative">
-                <PlayerAvatar name={r.name} color={r.color} className="w-9 h-9 border-3 font-display font-bold" />
-
-                {isFailed && showFails && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute inset-0 rounded-full flex items-center justify-center shadow-sm">
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="size-16 text-game-red"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                      strokeLinejoin="round">
-                      <motion.path
-                        d="M16 8L8 16"
-                        initial={{ pathLength: 0 }}
-                        animate={{ pathLength: 1 }}
-                        transition={{ duration: 0.25, ease: "easeOut" }}
-                      />
-                      <motion.path
-                        d="M8 8L16 16"
-                        initial={{ pathLength: 0 }}
-                        animate={{ pathLength: 1 }}
-                        transition={{ duration: 0.25, delay: 0.1, ease: "easeOut" }}
-                      />
-                    </svg>
-                  </motion.div>
-                )}
-              </div>
+              <PlayerAvatar
+                name={r.name}
+                color={r.color}
+                className="w-10 h-10 border-2 font-display font-bold shrink-0"
+              />
 
               <div className="flex-1 min-w-0">
                 <div className="relative inline-block w-max">
                   <div className="font-display font-bold text-xs text-muted-foreground">{r.name}</div>
-                  {/* Animated Strikethrough for Username */}
                   {isFailed && showFails && (
                     <motion.div
                       className="absolute top-1/2 left-[-5%] right-[-5%] h-0.5 bg-game-red origin-left rounded-full"
@@ -156,18 +101,23 @@ export function RoundResultPhase() {
                   )}
                 </div>
                 <div className="font-display font-extrabold text-xl truncate flex items-center gap-2">
-                  "{r.word}"
+                  {r.word ? `"${r.word}"` : "---"}
                   {r.isDuplicate && (
-                    <span className="text-[10px] font-display font-extrabold text-game-red uppercase tracking-wider">· Dubblett</span>
+                    <span className="text-[10px] font-display font-extrabold text-game-red uppercase tracking-wider">
+                      · Dubblett
+                    </span>
                   )}
                 </div>
               </div>
 
-              <div className={cn("font-display font-extrabold text-xl", isFailed && showFails ? "text-game-red" : isWinner ? "text-game-green" : "")}>
-                {r.isDuplicate ? (
-                  // Only show the X if showFails is active, otherwise show points/nothing temporarily
+              <div
+                className={cn(
+                  "font-display font-extrabold text-xl w-12 text-right",
+                  isFailed && showFails ? "text-game-red" : r.isWinner ? "text-game-green" : "",
+                )}>
+                {isFailed ? (
                   showFails ? (
-                    <X className="stroke-3" />
+                    <X className="stroke-[3px] ml-auto text-game-red" />
                   ) : (
                     `+${r.points}p`
                   )

@@ -311,7 +311,17 @@ func (g *AntiMatchGame) advancePhase() {
 			g.sendGamePhaseUpdate()
 		}
 	case AntiMatchPhaseResult:
-		// TODO: Build Final Score Payload
+		for id := range g.players {
+			if _, ok := g.TotalScores[id]; !ok {
+				g.TotalScores[id] = 0
+			}
+		}
+
+		payload := AntiMatchGameResultPayload{
+			TotalScores: g.TotalScores,
+		}
+
+		g.Broadcast(events.GameResultEvent, payload)
 		g.Stop()
 	}
 }

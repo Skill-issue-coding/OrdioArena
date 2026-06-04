@@ -32,3 +32,7 @@ export type AntiMatchRoundResult = {
   current_round: number;
   total_rounds: number;
 };
+
+export type AntiMatchGameResult = {
+  total_scores: Record<string, number>;
+};
