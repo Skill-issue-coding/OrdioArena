@@ -20,6 +20,8 @@ export function GameView() {
     if (phase !== "game_started") router.push("/");
   }, [phase, router]);
 
+  if (!game.timers.start_time) return null;
+
   return (
     <div className="w-full px-8 pt-5">
       {game.mode === "impostor" && <MainImpostorView />}
