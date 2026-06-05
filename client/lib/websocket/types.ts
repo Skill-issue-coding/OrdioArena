@@ -21,10 +21,12 @@
 export type { LobbyWSReceivedEvent, LobbyWSSendPayloadMap } from "./lobby";
 export type { ImpostorWSReceivedEvent } from "./game/impostor";
 export type { GameWSSendPayloadMap } from "./game/shared";
+export type { AntiMatchWSReceivedEvent } from "./game/antimatch";
 
 import type { LobbyWSReceivedEvent, LobbyWSSendPayloadMap } from "./lobby";
 import type { ImpostorWSReceivedEvent } from "./game/impostor";
 import type { GameWSSendPayloadMap } from "./game/shared";
+import type { AntiMatchWSReceivedEvent } from "./game/antimatch";
 
 // ---------------------------------------------------------------------------
 // Server → Client master union
@@ -35,7 +37,7 @@ import type { GameWSSendPayloadMap } from "./game/shared";
  * Discriminate on `type` to narrow to the correct payload shape.
  * When lobbyState.mode is known, narrow further to the mode-specific union.
  */
-export type WSReceivedEvent = LobbyWSReceivedEvent | ImpostorWSReceivedEvent;
+export type WSReceivedEvent = LobbyWSReceivedEvent | ImpostorWSReceivedEvent | AntiMatchWSReceivedEvent;
 
 /** All event type strings the server can send. */
 export type WSReceivedEventType = WSReceivedEvent["type"];

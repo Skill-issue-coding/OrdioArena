@@ -16,7 +16,7 @@
  * ```
  */
 
-import { LocalStorageProfile, User } from "@/lib/game/types";
+import { LocalStorageProfile, User } from "@/lib/game/game";
 import { ToastError, ToastSucess } from "@/lib/toast-functions";
 import { tryCatch } from "@/lib/try-catch";
 import axios from "axios";

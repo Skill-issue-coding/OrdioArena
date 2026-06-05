@@ -1,0 +1,27 @@
+PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX wikibase: <http://wikiba.se/ontology#>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX schema: <http://schema.org/>
+
+SELECT DISTINCT ?app ?appLabel ?sitelinks WHERE {
+  VALUES ?appType {
+    wd:Q2085381   # social network service (Facebook, Instagram, Twitter, LinkedIn, Snapchat)
+    wd:Q184769    # instant messaging software (WhatsApp, Telegram, Signal)
+    wd:Q15416     # video hosting service (YouTube, Vimeo, Dailymotion)
+    wd:Q27266161  # music streaming service (Spotify, Apple Music, Deezer)
+    wd:Q24826372  # subscription video on demand service (Netflix, Disney+, HBO)
+    wd:Q1193368   # microblogging service (Twitter, Tumblr)
+    wd:Q1137109   # social news website (Reddit)
+    wd:Q96294501  # short-form video hosting service (TikTok)
+    wd:Q1668720   # mobile app (broader fallback for major apps)
+  }
+  ?app wdt:P31 ?appType .
+
+  ?app wikibase:sitelinks ?sitelinks .
+  FILTER(?sitelinks > 20)
+
+  SERVICE wikibase:label {
+    bd:serviceParam wikibase:language "sv,en".
+  }
+}

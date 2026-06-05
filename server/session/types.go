@@ -115,9 +115,13 @@ type GameLobby struct {
 	// SettingUpdateRequests is a channel used to process lobby setting updates.
 	SettingUpdateRequests chan UpdateSettingPayload
 
-	// SyncRequests is a signal channel. Sending an empty struct triggers a
-	// SyncStateToClients broadcast.
-	SyncRequests chan struct{}
+	// SyncRequest sends the current lobby state only to the requesting client.
+	// Use this for reconnects or initial state hydration.
+	SyncRequest chan *Client
+
+	// ProfileUpdateRequests signals that a client updated their profile (name,
+	// avatar). The lobby broadcasts the new state to all clients.
+	ProfileUpdateRequests chan struct{}
 
 	// StartGameRequests is used by clients to request that the game starts.
 	// Handling it inside Run() ensures Clients is only accessed from one goroutine.

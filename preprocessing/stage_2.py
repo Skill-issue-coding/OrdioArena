@@ -13,8 +13,9 @@ from seeding import clean_seeding
 # Look for the cleaned seeding files first, fallback to the raw output
 INPUT_DIRS = ["intermediate/seeding_cleaned", "seeding/output_cleaned", "seeding/output"]
 OUTPUT_DIR = "intermediate/stage2_wiki"
-MAX_REQUESTS_PER_MIN = 200
+MAX_REQUESTS_PER_MIN = 20           # 1 request per 2 s — well within Wikipedia's limits
 MIN_INTERVAL_SECONDS = 60.0 / MAX_REQUESTS_PER_MIN
+BATCH_SIZE = 20                     # Wikipedia extracts API max titles per request (with exintro)
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=BASE_DIR / ".env.local")
@@ -64,92 +65,99 @@ def get_input_dir():
             return d
     return None
 
+def _do_batch_request(
+    session: requests.Session,
+    url: str,
+    params: dict,
+    limiter: "RateLimiter",
+) -> dict:
+    """Single API call with one 429-retry and proper limiter reset."""
+    limiter.wait()
+    resp = session.get(url, params=params, timeout=15)
+
+    if resp.status_code in {429, 503}:
+        wait_seconds = _retry_after_seconds(resp)
+        log.warning(f"Rate limited (status {resp.status_code}), sleeping {wait_seconds:.0f}s")
+        print(f"  Rate limited — sleeping {wait_seconds:.0f}s before retry…")
+        time.sleep(wait_seconds)
+        limiter._last_request_at = 0.0  # fire immediately after sleep, not after another 2 s
+        limiter.wait()
+        resp = session.get(url, params=params, timeout=15)
+
+    try:
+        return resp.json()
+    except ValueError:
+        snippet = (resp.text or "").strip().replace("\n", " ")[:200]
+        log.warning(f"Invalid JSON (status {resp.status_code}). Body: {snippet}")
+        return {}
+
+
 def fetch_wikipedia_summaries(entities):
+    """Fetch Swedish Wikipedia intro paragraphs using batched requests (up to 20 titles each).
+
+    371 entities → ~19 API calls instead of 371, which avoids IP bans from rapid-fire requests.
     """
-    Fetches the introductory paragraph from Swedish Wikipedia for a list of entities.
-    Uses a Session for connection pooling (much faster).
-    """
+    entities = [e for e in entities if isinstance(e, str) and e.strip()]
+
     session = requests.Session()
     contact = f"mailto:{MAIL}" if MAIL else "no-contact"
     session.headers.update({"User-Agent": f"WordGameBot/1.0 ({contact})"})
-    
+
     url = "https://sv.wikipedia.org/w/api.php"
-    summaries = {}
-    
-    print(f"Börjar hämta {len(entities)} sammanfattningar från sv.wikipedia.org...")
-    log.info(f"Stage 2: fetching {len(entities)} Wikipedia summaries")
-    
+    summaries: dict[str, str] = {}
     limiter = RateLimiter(MIN_INTERVAL_SECONDS)
 
-    for i, entity in enumerate(entities):
-        if not isinstance(entity, str) or not entity.strip():
-            continue
-            
+    n_batches = (len(entities) + BATCH_SIZE - 1) // BATCH_SIZE
+    print(f"Hämtar {len(entities)} sammanfattningar i {n_batches} batchar ({BATCH_SIZE}/batch)…")
+    log.info(f"Stage 2: fetching {len(entities)} Wikipedia summaries in {n_batches} batches")
+
+    for batch_num, batch_start in enumerate(range(0, len(entities), BATCH_SIZE), 1):
+        batch = entities[batch_start : batch_start + BATCH_SIZE]
+
         params = {
-            "action": "query",
-            "format": "json",
-            "titles": entity,
-            "prop": "extracts",
-            "exintro": True,      # Only get the intro paragraph
-            "explaintext": True,  # Return plain text, not HTML
-            "redirects": 1        # Automatically resolve redirects (e.g., "Zlatan" -> "Zlatan Ibrahimović")
+            "action":     "query",
+            "format":     "json",
+            "titles":     "|".join(batch),
+            "prop":       "extracts",
+            "exintro":    True,
+            "explaintext": True,
+            "exlimit":    "max",   # return extracts for all titles in the batch
+            "redirects":  1,
         }
-        
+
         try:
-            limiter.wait()
-            resp = session.get(url, params=params, timeout=5)
-
-            if resp.status_code in {429, 503}:
-                wait_seconds = _retry_after_seconds(resp)
-                print(
-                    f"Rate limited for '{entity}' (status {resp.status_code}). "
-                    f"Sleeping {wait_seconds:.1f}s before retry."
-                )
-                log.warning(
-                    f"Rate limited for '{entity}' (status {resp.status_code}), "
-                    f"sleeping {wait_seconds:.1f}s"
-                )
-                time.sleep(wait_seconds)
-                limiter.wait()
-                resp = session.get(url, params=params, timeout=5)
-
-            try:
-                data = resp.json()
-            except ValueError:
-                snippet = (resp.text or "").strip().replace("\n", " ")[:200]
-                print(
-                    f"Fel vid hämtning av '{entity}': Invalid JSON "
-                    f"(status {resp.status_code}). Body: {snippet}"
-                )
-                log.warning(
-                    f"Invalid JSON for '{entity}' (status {resp.status_code}). "
-                    f"Body: {snippet}"
-                )
+            data = _do_batch_request(session, url, params, limiter)
+        except Exception as exc:
+            log.warning(f"Batch {batch_num} failed: {exc}")
+            for entity in batch:
                 summaries[entity] = ""
-                continue
+            continue
 
-            pages = data.get("query", {}).get("pages", {})
-            
-            # The API returns a dict with the Page ID as the key. 
-            # If the page doesn't exist, the key is "-1".
-            for page_id, page_data in pages.items():
-                if page_id != "-1" and "extract" in page_data:
-                    summaries[entity] = page_data["extract"].strip()
-                else:
-                    summaries[entity] = "" # Not found on Wiki
-                    
-        except Exception as e:
-            print(f"Fel vid hämtning av '{entity}': {e}")
-            log.warning(f"Fetch error for '{entity}': {e}")
-            summaries[entity] = ""
-            
-        # Print progress every 100 entities
-        if (i + 1) % 100 == 0:
-            print(f" -> Hämtat {i + 1}/{len(entities)}...")
-            
-        # Polite delay to avoid getting IP-banned by Wikimedia
-        time.sleep(0.05) 
-        
+        query_data = data.get("query", {})
+
+        # Build a lookup: every form of an entity name → canonical Wikipedia title.
+        # The API returns both 'normalized' (space/case fixes) and 'redirects' arrays.
+        title_map: dict[str, str] = {}
+        for entry in query_data.get("normalized", []):
+            title_map[entry["from"].lower()] = entry["to"]
+        for entry in query_data.get("redirects", []):
+            title_map[entry["from"].lower()] = entry["to"]
+
+        # canonical title → extract
+        title_to_extract: dict[str, str] = {
+            page["title"]: page.get("extract", "").strip()
+            for page in query_data.get("pages", {}).values()
+            if "missing" not in page
+        }
+
+        for entity in batch:
+            canonical = title_map.get(entity.lower(), entity)
+            summaries[entity] = title_to_extract.get(canonical, "")
+
+        if batch_num % 5 == 0 or batch_num == n_batches:
+            done = min(batch_start + BATCH_SIZE, len(entities))
+            print(f"  batch {batch_num}/{n_batches} — {done}/{len(entities)} entiteter klara")
+
     return summaries
 
 def main():

@@ -1,16 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Gamepad2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { popIn } from "@/lib/animation-util";
 import { useWebsocketContext } from "@/hooks/websocketcontext";
+import { useRouter } from "next/navigation";
 
 export default function HomeView() {
-  const { sendEvent } = useWebsocketContext();
+  const { sendEvent, subscribe } = useWebsocketContext();
+  const router = useRouter();
   const [roomCode, setRoomCode] = useState("");
+  const pendingCodeRef = useRef("");
+
+  useEffect(() => {
+    const unsubSync = subscribe("sync_gamestate", (payload) => {
+      pendingCodeRef.current = payload.lobbystate.code;
+    });
+    const unsubJoined = subscribe("joined_lobby", () => {
+      if (pendingCodeRef.current) router.push(`/lobby/${pendingCodeRef.current}`);
+    });
+    return () => {
+      unsubSync();
+      unsubJoined();
+    };
+  }, [router, subscribe]);
 
   const formatCode = (val: string) => {
     const clean = val.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8);

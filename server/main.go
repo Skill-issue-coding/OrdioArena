@@ -44,9 +44,7 @@ func handleServerStartup() {
 
 	ws := router.Group("/ws")
 	{
-		ws.GET("/game", func(c *gin.Context) {
-			handlers.HandleWebSocket(c, gameHub)
-		})
+		ws.GET("/game", func(c *gin.Context) { handlers.HandleWebSocket(c, gameHub) })
 	}
 
 	log.Println("Server running on http://localhost:8080")

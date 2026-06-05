@@ -36,8 +36,11 @@ Output (overwrites server/wordfiles/targets.json):
 import json
 import logging
 from pathlib import Path
+import re
+from collections import Counter
 
 import numpy as np
+import pandas as pd
 
 BASE_DIR    = Path(__file__).resolve().parent
 EMB_FILE    = BASE_DIR / "intermediate" / "stage5_encoded" / "embeddings.npy"
@@ -45,6 +48,8 @@ VOCAB_FILE  = BASE_DIR / "intermediate" / "stage5_encoded" / "vocab.json"
 SRC_FILE    = BASE_DIR / "intermediate" / "stage5_encoded" / "sources.json"
 LEMMA_FILE  = BASE_DIR / "intermediate" / "stage5_encoded" / "lemma_map.json"
 TARGET_FILE = BASE_DIR.parent / "server" / "wordfiles" / "targets.json"
+KORP_CSV    = BASE_DIR / "intermediate" / "korp_cleaned" / "korp_combined_cleaned.csv"
+STAGE3_ATTRS_DIR = BASE_DIR / "intermediate" / "stage3_attrs"
 
 # ── Cone quality thresholds ────────────────────────────────────────────────────
 # cone_width = sim@rank10 − sim@rank500  (how much similarity drops across the ranking)
@@ -55,10 +60,64 @@ MIN_CONE_WIDTH = 0.06   # minimum required drop from rank 10 to rank 500
 MAX_CONE_WIDTH = 0.72   # maximum allowed drop
 
 # ── Impostor candidate selection ──────────────────────────────────────────────
-IMPOSTOR_MIN_SIM       = 0.50   # similar enough to confuse the impostor
-IMPOSTOR_MAX_SIM       = 0.80   # distinct enough to not give the game away
+IMPOSTOR_MIN_SIM       = 0.50   # similar enough to confuse the impostor (used for general targets)
+IMPOSTOR_MAX_SIM       = 0.80   # distinct enough to not give the game away (used for general targets)
 IMPOSTOR_MAX_SEARCH    = 500    # look at this many nearest neighbours per target
 IMPOSTOR_MAX_CANDIDATES = 12    # store at most this many candidates
+
+# For entity targets (company / celebrity / game) the neighbour-search approach
+# surfaces specific peer entities (other brands, other DJs) rather than broad
+# category descriptors.  Instead we pick from this curated pool of domain words
+# and rank them by similarity to the specific target — so Sony gets "konsol" and
+# "dator" before "bil", while Google gets "söktjänst" and "webbtjänst" first.
+#
+# Candidates are kept if they rank in the top IMPOSTOR_POOL_GUARANTEED positions
+# OR their similarity is at least IMPOSTOR_POOL_MIN_SIM.  This prevents weakly-
+# related words from padding the list while still guaranteeing a minimum number
+# of candidates for niche entities with low overall similarity to the pool.
+IMPOSTOR_POOL_MIN_SIM    = 0.35   # exclude pool words below this sim (beyond guaranteed)
+IMPOSTOR_POOL_GUARANTEED = 4      # always keep this many top-sim pool words regardless
+ENTITY_DESCRIPTOR_POOL: dict[str, list[str]] = {
+    "company": [
+        "telefon", "telefoner", "dator", "datorer", "internet", "söktjänst",
+        "webbtjänst", "bolag", "företag", "tjänst", "produkt", "industri",
+        "handel", "affär", "märke", "musik", "film", "underhållning", "kläder",
+        "bil", "konsol", "spel", "streaming", "butik", "bank", "försäkring",
+        "media", "kamera", "programvara", "programmet", "livsmedel",
+        "läkemedel", "energi", "olja", "stål", "verkstad", "transport",
+    ],
+    "celebrity": [
+        "musik", "artist", "kändis", "sång", "album", "konsert", "låtar",
+        "sångare", "film", "skådespelare", "sport", "fotboll", "ishockey",
+        "tennis", "friidrott", "television", "serie", "underhållning",
+        "kultur", "mode", "media", "journalist", "politiker", "komiker",
+        "influencer", "youtuber", "rappare",
+    ],
+    "game": [
+        "datorspel", "konsol", "spel", "äventyr", "action", "rollspel",
+        "strategi", "pussel", "underhållning", "online", "multiplayer",
+        "videospel",
+    ],
+}
+
+# Augment the descriptor pool by mining frequent, general-purpose words from
+# the stage3 attribute CSVs (wiki_summary / wiki_attributes). This helps align
+# the pool with the actual entity data without hard-coding everything.
+ENTITY_ATTR_SOURCES: dict[str, list[str]] = {
+    "company": ["global_brands.csv", "swedish_companies.csv"],
+    "celebrity": ["swedish_celebrities.csv", "swedish_music.csv"],
+    "game": ["video_games.csv"],
+}
+
+POOL_STOPWORDS = {
+    "och", "att", "som", "den", "det", "de", "en", "ett", "i", "av", "på",
+    "för", "med", "till", "är", "har", "var", "från", "samt", "om", "vid",
+    "där", "även", "kan", "bland", "under", "över", "sina", "hans", "hennes",
+    "sin", "sitt", "sina", "mellan", "efter", "före", "sedan",
+}
+MIN_POOL_TOKEN_LEN = 3
+MIN_POOL_KORP_FREQ = 20
+DYNAMIC_POOL_MAX = 40
 
 # ── Rank markers written to targets.json ─────────────────────────────────────
 RANK_MARKERS = [10, 50, 100, 500, 1000]
@@ -79,6 +138,54 @@ def _setup_logger() -> logging.Logger:
         root.addHandler(handler)
         root.setLevel(logging.INFO)
     return logging.getLogger(__name__)
+
+
+def _tokenize(text: str) -> list[str]:
+    return re.findall(r"[a-zA-ZåäöÅÄÖ]+", text.lower())
+
+
+def _build_dynamic_descriptor_pool(
+    kind: str,
+    word_to_idx: dict[str, int],
+    sources: list[str] | None,
+    korp_freq: dict[str, int],
+) -> list[str]:
+    csv_names = ENTITY_ATTR_SOURCES.get(kind, [])
+    if not csv_names:
+        return []
+
+    counts: Counter[str] = Counter()
+    for name in csv_names:
+        path = STAGE3_ATTRS_DIR / name
+        if not path.exists():
+            continue
+        df = pd.read_csv(path)
+        cols = [c for c in ("wiki_summary", "wiki_attributes") if c in df.columns]
+        if not cols:
+            continue
+        for col in cols:
+            for raw in df[col].dropna().astype(str):
+                for tok in _tokenize(raw):
+                    if len(tok) < MIN_POOL_TOKEN_LEN or tok in POOL_STOPWORDS:
+                        continue
+                    idx = word_to_idx.get(tok)
+                    if idx is None:
+                        continue
+                    if sources is not None and sources[idx] != "general":
+                        continue
+                    if korp_freq and korp_freq.get(tok, 0) < MIN_POOL_KORP_FREQ:
+                        continue
+                    counts[tok] += 1
+
+    if not counts:
+        return []
+
+    ranked = sorted(
+        counts.items(),
+        key=lambda kv: (kv[1], korp_freq.get(kv[0], 0)),
+        reverse=True,
+    )
+    return [w for w, _ in ranked[:DYNAMIC_POOL_MAX]]
 
 
 log = _setup_logger()
@@ -118,6 +225,15 @@ def main() -> None:
     if LEMMA_FILE.exists():
         with LEMMA_FILE.open("r", encoding="utf-8") as f:
             lemma_map = json.load(f)
+
+    # ── Load Korp frequencies (used to prefer broader impostor candidates) ────
+    korp_freq: dict[str, int] = {}
+    if KORP_CSV.exists():
+        kf = pd.read_csv(KORP_CSV, header=0)
+        kf.columns = ["word", "freq"]
+        kf["freq"] = pd.to_numeric(kf["freq"], errors="coerce").fillna(0)
+        korp_freq = {str(w).lower(): int(f) for w, f in zip(kf["word"], kf["freq"])}
+        print(f"  Korp-frekvenser: {len(korp_freq):,} ord")
 
     # ── Load targets ──────────────────────────────────────────────────────────
     with TARGET_FILE.open("r", encoding="utf-8") as f:
@@ -196,36 +312,65 @@ def main() -> None:
             antihive_threshold = round(1.0 - sim_at_rank["500"], 4)
 
             # ── Impostor candidates ───────────────────────────────────────────
-            candidates: list[str] = []
-            for k in range(1, min(IMPOSTOR_MAX_SEARCH, cap)):
-                if len(candidates) >= IMPOSTOR_MAX_CANDIDATES:
-                    break
-                c_idx = int(sorted_idx[k])
-                c_sim = float(sim_row[c_idx])
-
-                if c_sim < IMPOSTOR_MIN_SIM:
-                    break  # sorted descending, nothing further qualifies
-
-                if c_sim > IMPOSTOR_MAX_SIM:
-                    continue  # too close — would give the game away
-
-                c_word  = vocab[c_idx]
-                c_lower = c_word.lower()
-                c_lemma = lemma_map.get(c_lower, c_lower)
-
-                if c_lemma == t_lemma:
-                    continue  # morphological variant of the target
-                if t_lower in c_lower or c_lower in t_lower:
-                    continue  # substring overlap
-
-                if sources is not None:
-                    c_type = sources[c_idx]
-                    # Accept same category, or allow "general" words as wildcard
-                    # in either direction so common nouns can pair with entities.
-                    if c_type != t_type and c_type != "general" and t_type != "general":
+            # Entity types (company / celebrity / game): pick from a curated pool
+            # of broad domain words, ranked by similarity to this specific target.
+            # This surfaces "artist", "musik", "konsert" for Avicii rather than
+            # peer-entity names like "tiesto" or "guetta".
+            #
+            # General targets: use the original nearest-neighbour search so that
+            # abstract concepts still get semantically adjacent peer words.
+            descriptor_pool = ENTITY_DESCRIPTOR_POOL.get(t_type)
+            if descriptor_pool is not None:
+                pool_candidates: list[tuple[str, float]] = []
+                for c_word in descriptor_pool:
+                    c_lower = c_word.lower()
+                    c_idx   = word_to_idx.get(c_lower)
+                    if c_idx is None:
                         continue
+                    c_lemma = lemma_map.get(c_lower, c_lower)
+                    if c_lemma == t_lemma:
+                        continue
+                    if t_lower in c_lower or c_lower in t_lower:
+                        continue
+                    pool_candidates.append((c_word, float(sim_row[c_idx])))
+                pool_candidates.sort(key=lambda x: x[1], reverse=True)
+                candidates = []
+                for rank, (c_word, c_sim) in enumerate(pool_candidates):
+                    if rank < IMPOSTOR_POOL_GUARANTEED or c_sim >= IMPOSTOR_POOL_MIN_SIM:
+                        candidates.append(c_word)
+                    if len(candidates) >= IMPOSTOR_MAX_CANDIDATES:
+                        break
+            else:
+                # Original nearest-neighbour search for general targets.
+                raw_candidates: list[tuple[str, int]] = []
+                for k in range(1, min(IMPOSTOR_MAX_SEARCH, cap)):
+                    c_idx = int(sorted_idx[k])
+                    c_sim = float(sim_row[c_idx])
 
-                candidates.append(c_word)
+                    if c_sim < IMPOSTOR_MIN_SIM:
+                        break  # sorted descending, nothing further qualifies
+
+                    if c_sim > IMPOSTOR_MAX_SIM:
+                        continue  # too close — would give the game away
+
+                    c_word  = vocab[c_idx]
+                    c_lower = c_word.lower()
+                    c_lemma = lemma_map.get(c_lower, c_lower)
+
+                    if c_lemma == t_lemma:
+                        continue  # morphological variant of the target
+                    if t_lower in c_lower or c_lower in t_lower:
+                        continue  # substring overlap
+
+                    if sources is not None:
+                        c_type_c = sources[c_idx]
+                        if c_type_c != t_type and c_type_c != "general" and t_type != "general":
+                            continue
+
+                    raw_candidates.append((c_word, korp_freq.get(c_lower, 0)))
+
+                raw_candidates.sort(key=lambda x: x[1], reverse=True)
+                candidates = [w for w, _ in raw_candidates[:IMPOSTOR_MAX_CANDIDATES]]
 
             entry = dict(item)
             entry["sim_at_rank"]         = sim_at_rank

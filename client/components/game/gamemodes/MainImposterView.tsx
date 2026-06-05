@@ -1,39 +1,26 @@
 "use client";
 
 import { AnimatePresence } from "framer-motion";
-import { useImpostorGame, usePhaseCountdown, usePhaseReady } from "@/hooks/gamecontext";
+// import { useImpostorGame, usePhaseCountdown, usePhaseReady } from "@/hooks/gamecontext";
+import { useImpostorGame } from "@/hooks/newgamecontext";
 import { GetReadyScreen } from "@/components/game/GetReadyScreen";
 import { RevealPhase } from "../impostor/RevealPhase";
 import { DiscussionPhase } from "../impostor/DiscussionPhase";
 import { InputPhase } from "../impostor/InputPhase";
 import { VotePhase } from "../impostor/VotePhase";
-import { ResultPhase } from "../impostor/ResultPhase";
 import { IntermediatePhase } from "../impostor/IntermediatePhase";
 import CountdownBar from "../CountdownBar";
+import { usePhaseCountdown, usePhaseReady } from "@/hooks/timers";
 
 export const MainImpostorView = () => {
   const game = useImpostorGame();
 
-  const readyTime = game?.phaseState?.timers?.ready_time;
-  const isReady = usePhaseReady(readyTime);
-  const remainingMs = usePhaseCountdown(readyTime);
-
-  // gamecontext preserves `result` across phase resets and builds gameState whenever
-  // result is non-null, so this check is always stable regardless of render ordering.
-  if (game?.result) {
-    return (
-      <div className="w-full space-y-6">
-        <AnimatePresence mode="wait">
-          <ResultPhase key="result" />
-        </AnimatePresence>
-      </div>
-    );
-  }
+  const isReady = usePhaseReady();
+  const remainingMs = usePhaseCountdown();
 
   if (!isReady) return <GetReadyScreen remainingMs={remainingMs} />;
-  if (!game || !game.phaseState) return null;
 
-  const phase = game.voteResult ? "intermediate" : game.phaseState.game_phase;
+  const phase = game.phase;
   const show_countdown = phase !== "show_word" && phase !== "intermediate";
 
   return (

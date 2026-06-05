@@ -12,6 +12,9 @@ import (
 type GameSetting string
 
 const (
+	MAXIMUM_LOBBY_SIZE            int = 12
+	MIN_NUM_PLAYERS_TO_START_GAME int = 3
+
 	INPUT_DURATION      GameSetting = "input_duration"
 	DISCUSSION_DURATION GameSetting = "discussion_duration"
 	IMPOSTOR_COUNT      GameSetting = "impostor_count"
@@ -34,13 +37,15 @@ func NewLobby(id string) *GameLobby {
 		ModeUpdateRequests:    make(chan GameMode),
 		SettingUpdateRequests: make(chan UpdateSettingPayload),
 		ChatMessages:          make(chan ChatMessage),
-		SyncRequests:          make(chan struct{}, 8),
+		SyncRequest:           make(chan *Client),
+		ProfileUpdateRequests: make(chan struct{}, 8),
 		Phase:                 LobbyPhase,
 		Users:                 make(map[uuid.UUID]*UserProfile),
-		StartGameRequests:     make(chan *Client),
-		GameInputs:            make(chan game.GameInput, 16),
-		GameOutputs:           make(chan game.GameOutput, 32),
-		GameDone:              make(chan struct{}, 1),
+		// Game Related channels
+		StartGameRequests: make(chan *Client),
+		GameInputs:        make(chan game.GameInput, 16),
+		GameOutputs:       make(chan game.GameOutput, 32),
+		GameDone:          make(chan struct{}, 1),
 	}
 	lobby.SetMode(ModeImpostor)
 	return lobby
@@ -54,6 +59,11 @@ func (lobby *GameLobby) Run() {
 		select {
 
 		case client := <-lobby.Register:
+			if len(lobby.Users) >= MAXIMUM_LOBBY_SIZE {
+				client.SendError("Lobbyn är full")
+				continue
+			}
+
 			if lobby.Phase == GameStarted {
 				client.SendError("Spelet har redan börjat, kan inte ansluta")
 				client.SendEvent(events.JoinLobbyErrorEvent, nil)
@@ -99,6 +109,10 @@ func (lobby *GameLobby) Run() {
 			delete(lobby.Clients, client)
 			delete(lobby.Users, client.UserId)
 
+			if lobby.Phase == GameStarted && lobby.CurrentGame != nil {
+				lobby.CurrentGame.PlayerLeft(client.UserId)
+			}
+
 			log.Printf("[Room %s] Player '%s' left. Players remaining: %d", lobby.ID, client.Username(), len(lobby.Clients))
 
 			client.SendEvent(events.LeftLobbyEvent, nil)
@@ -123,18 +137,21 @@ func (lobby *GameLobby) Run() {
 				}
 			}
 
-			lobby.SyncStateToClients()
+			lobby.SyncStateToAllClients()
 
-		case <-lobby.SyncRequests:
-			lobby.SyncStateToClients()
+		case client := <-lobby.SyncRequest:
+			lobby.SyncStateToClient(client)
+
+		case <-lobby.ProfileUpdateRequests:
+			lobby.SyncStateToAllClients()
 
 		case mode := <-lobby.ModeUpdateRequests:
 			lobby.SetMode(mode)
-			lobby.SyncStateToClients()
+			lobby.SyncStateToAllClients()
 
 		case update := <-lobby.SettingUpdateRequests:
 			lobby.ApplySetting(update.Key, update.Value)
-			lobby.SyncStateToClients()
+			lobby.SyncStateToAllClients()
 
 		case message := <-lobby.ChatMessages:
 			for client := range lobby.Clients {
@@ -152,12 +169,16 @@ func (lobby *GameLobby) Run() {
 				continue
 			}
 
-			// TODO: Add checks to see if there are actually enough players to start the game
+			if len(lobby.Users) < MIN_NUM_PLAYERS_TO_START_GAME {
+				client.SendError("Inte tillräckligt med spelare för att starta spelet.")
+				continue
+			}
 
 			players := make([]uuid.UUID, 0, len(lobby.Users))
 			for id := range lobby.Users {
 				players = append(players, id)
 			}
+
 			onDone := func() {
 				select {
 				case lobby.GameDone <- struct{}{}:
@@ -169,7 +190,7 @@ func (lobby *GameLobby) Run() {
 			case ModeImpostor:
 				lobby.CurrentGame = game.NewImpostorGame(lobby.ImpostorSettings, players, &client.Hub.Dictionary, lobby.GameOutputs, onDone)
 			case ModeAntiMatch:
-				lobby.CurrentGame = game.NewAntimatchGame(lobby.AntiMatchSettings, lobby.GameOutputs, onDone)
+				lobby.CurrentGame = game.NewAntimatchGame(lobby.AntiMatchSettings, &client.Hub.Dictionary, lobby.GameOutputs, players, onDone)
 			}
 
 			if lobby.CurrentGame == nil {
@@ -178,7 +199,7 @@ func (lobby *GameLobby) Run() {
 			}
 
 			lobby.Phase = GameStarted
-			lobby.SyncStateToClients()
+			lobby.SyncStateToAllClients()
 			for c := range lobby.Clients {
 				c.SendEvent(events.GameStartedEvent, nil)
 			}
@@ -232,9 +253,9 @@ func (lobby *GameLobby) Run() {
 	}
 }
 
-// SyncStateToClients broadcasts the current LobbyState to every client in the
+// SyncStateToAllClients broadcasts the current LobbyState to every client in the
 // lobby. It should only be called from within the lobby's Run goroutine.
-func (lobby *GameLobby) SyncStateToClients() {
+func (lobby *GameLobby) SyncStateToAllClients() {
 	state := lobby.BuildLobbyState()
 	for client := range lobby.Clients {
 		if _, exists := lobby.Users[client.UserId]; !exists {
@@ -244,6 +265,12 @@ func (lobby *GameLobby) SyncStateToClients() {
 			GameState: state,
 		})
 	}
+}
+
+// SyncStateToClient broadcasts the current LobbyState to a single client.
+func (lobby *GameLobby) SyncStateToClient(client *Client) {
+	state := lobby.BuildLobbyState()
+	client.SendEvent(events.SyncGameStateEvent, SyncStatePayload{GameState: state})
 }
 
 // BuildLobbyState assembles a point-in-time snapshot of the lobby's shared
@@ -330,10 +357,9 @@ func (lobby *GameLobby) ApplySetting(key GameSetting, value float64) {
 		switch key {
 		case INPUT_DURATION:
 			lobby.AntiMatchSettings.InputDuration = util.ClampInt(value, game.ANTIMATCH_ROUND_DURATION_MIN, game.ANTIMATCH_ROUND_DURATION_MAX)
-		case MAX_DISTANCE:
-			lobby.AntiMatchSettings.MaxDistance = util.ClampFloat(value, game.ANTIMATCH_DISTANCE_MIN, game.ANTIMATCH_DISTANCE_MAX)
 		case NUMBER_OF_ROUNDS:
-			lobby.AntiMatchSettings.Rounds = util.ClampInt(value, game.ANTIMATCH_ROUNDS_MIN, game.ANTIMATCH_ROUNDS_MAX)
+			lobby.AntiMatchSettings.Rounds = int8(util.ClampInt(value, int(game.ANTIMATCH_ROUNDS_MIN), int(game.ANTIMATCH_ROUNDS_MAX)))
 		}
+
 	}
 }

@@ -34,12 +34,13 @@ except ImportError:
         value = (value or "").strip()
         return bool(value) and not value.startswith("http") and not re.match(r"^Q\d+$", value) and any(c.isalpha() for c in value)
 
-BASE_DIR   = Path(__file__).resolve().parent
-STAGE3_DIR = BASE_DIR / "intermediate" / "stage3_attrs"
-STAGE4_CSV = BASE_DIR / "intermediate" / "stage4_general" / "general_words.csv"
-VOCAB_FILE = BASE_DIR / "intermediate" / "stage5_encoded" / "vocab.json"
-OUTPUT_DIR = BASE_DIR.parent / "server" / "wordfiles"
-OUT_FILE   = OUTPUT_DIR / "targets.json"
+BASE_DIR          = Path(__file__).resolve().parent
+STAGE3_DIR        = BASE_DIR / "intermediate" / "stage3_attrs"
+STAGE4_CSV        = BASE_DIR / "intermediate" / "stage4_general" / "general_words.csv"
+VOCAB_FILE        = BASE_DIR / "intermediate" / "stage5_encoded" / "vocab.json"
+SEEDING_CLEAN_DIR = BASE_DIR / "intermediate" / "seeding_cleaned"
+OUTPUT_DIR        = BASE_DIR.parent / "server" / "wordfiles"
+OUT_FILE          = OUTPUT_DIR / "targets.json"
 
 # Only these POS types are interesting as Contexto targets.
 # PROPN (proper nouns) come from entities and are included separately.
@@ -94,7 +95,19 @@ def collect_general_targets(encoded: set[str]) -> list[tuple[str, str]]:
         & (df["word"].str.len() >= MIN_WORD_LEN)
         & (df["word"].str.len() <= MAX_WORD_LEN)
     )
-    words = df.loc[mask, "word"].dropna().astype(str).tolist()
+    df_filtered = df.loc[mask].copy()
+    df_filtered["word"]  = df_filtered["word"].astype(str).str.lower()
+    df_filtered["lemma"] = df_filtered["lemma"].astype(str).str.lower()
+
+    # Keep one word per lemma: base form first (word == lemma), then highest frequency.
+    df_filtered["is_base"] = df_filtered["word"] == df_filtered["lemma"]
+    df_filtered = (
+        df_filtered
+        .sort_values(["is_base", "Totalt"], ascending=[False, False])
+        .drop_duplicates(subset=["lemma"], keep="first")
+    )
+
+    words = df_filtered["word"].tolist()
 
     if encoded:
         words = [w for w in words if w.lower() in encoded]
@@ -135,6 +148,56 @@ def collect_entity_targets(encoded: set[str]) -> list[tuple[str, str]]:
     return entities
 
 
+def build_notability_lookup() -> tuple[dict[str, int], dict[str, float]]:
+    """
+    Scans the cleaned seeding CSVs for sitelinks and maktbarometern_cleaned.csv
+    for scores. Returns two name→value dicts (keys lowercased).
+    """
+    sitelinks_lookup: dict[str, int] = {}
+    for csv_path in sorted(SEEDING_CLEAN_DIR.glob("*.csv")):
+        if csv_path.name == "maktbarometern_cleaned.csv":
+            continue
+        df = pd.read_csv(csv_path)
+        label_col = next((c for c in df.columns if c.endswith("Label")), None)
+        if label_col is None or "sitelinks" not in df.columns:
+            continue
+        df["sitelinks"] = pd.to_numeric(df["sitelinks"], errors="coerce").fillna(0)
+        for _, row in df.iterrows():
+            name = str(row[label_col]).strip()
+            if not name or name.startswith("http"):
+                continue
+            sl = int(row["sitelinks"])
+            key = name.lower()
+            if sl > sitelinks_lookup.get(key, 0):
+                sitelinks_lookup[key] = sl
+
+    makt_lookup: dict[str, float] = {}
+    makt_path = SEEDING_CLEAN_DIR / "maktbarometern_cleaned.csv"
+    if makt_path.exists():
+        df = pd.read_csv(makt_path)
+        df["score"] = pd.to_numeric(df["score"], errors="coerce").fillna(0)
+        for _, row in df.iterrows():
+            name = str(row["name"]).strip()
+            if name:
+                makt_lookup[name.lower()] = float(row["score"])
+
+    return sitelinks_lookup, makt_lookup
+
+
+def compute_notability_score(
+    word: str,
+    sitelinks_lookup: dict[str, int],
+    makt_lookup: dict[str, float],
+    max_sitelinks: int,
+    max_makt: float,
+) -> float:
+    """[0, 1] — average of normalised sitelinks and normalised maktbarometern score."""
+    key = word.lower()
+    sl_norm   = sitelinks_lookup.get(key, 0) / max_sitelinks if max_sitelinks > 0 else 0.0
+    makt_norm = makt_lookup.get(key, 0.0)    / max_makt      if max_makt > 0      else 0.0
+    return round((sl_norm + makt_norm) / 2, 4)
+
+
 def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -164,6 +227,17 @@ def main():
 
     targets.sort(key=lambda t: t["word"].lower())
 
+    # Attach notability scores from Wikidata sitelinks + Maktbarometern.
+    sitelinks_lookup, makt_lookup = build_notability_lookup()
+    max_sitelinks = max(sitelinks_lookup.values(), default=1)
+    max_makt      = max(makt_lookup.values(),      default=1.0)
+    for t in targets:
+        t["notability_score"] = compute_notability_score(
+            t["word"], sitelinks_lookup, makt_lookup, max_sitelinks, max_makt
+        )
+    notable = sum(1 for t in targets if t["notability_score"] > 0)
+    log.info(f"Stage 7: {notable} targets with notability_score > 0")
+
     with OUT_FILE.open("w", encoding="utf-8") as f:
         json.dump(targets, f, ensure_ascii=False, indent=2)
     log.info(f"Stage 7: wrote {OUT_FILE} ({len(targets)})")
@@ -174,6 +248,7 @@ def main():
     breakdown = "  ".join(f"{c}: {n:,}" for c, n in sorted(cats.items()))
     print(f"Klar! {len(targets):,} målord sparade till {OUT_FILE}")
     print(f"  {breakdown}")
+    print(f"  {notable:,} målord med notabilitetspoäng > 0")
     print("Kör stage_9.py för att berika med likhetsmetadata och impostorkandidater.")
 
 

@@ -2,15 +2,13 @@
 
 import PhaseTransition from "../PhaseTransition";
 import { HatGlasses, Users } from "lucide-react";
-import { useImpostorGame } from "@/hooks/gamecontext";
+// import { useImpostorGame } from "@/hooks/gamecontext";
+import { useImpostorGame } from "@/hooks/newgamecontext";
 import { cn } from "@/lib/utils";
 
 export function RevealPhase() {
   const game = useImpostorGame();
-  if (!game || !game.roundState) return null;
-
-  const isImpostor = game.roundState.role === "impostor";
-  const roundState = game.roundState;
+  const isImpostor = game.role === "impostor";
 
   return (
     <PhaseTransition phaseKey="reveal">
@@ -19,7 +17,7 @@ export function RevealPhase() {
         {isImpostor ? "Du är impostern! \n Här är ditt ledtrådsord" : "Ditt hemliga ord"}
       </p>
       <div className={cn("game-card mb-6 py-10 border-2", isImpostor ? "border-destructive" : "border-game-green")}>
-        <h2 className={cn("font-display text-6xl font-bold", isImpostor ? "text-destructive" : "text-game-green")}>{roundState.word}</h2>
+        <h2 className={cn("font-display text-6xl font-bold", isImpostor ? "text-destructive" : "text-game-green")}>{game.word}</h2>
       </div>
       <p className="mb-6 text-sm font-semibold text-center text-muted-foreground font-display">{isImpostor ? "Försök lista ut vad de andra pratar om utan att bli påkommen!" : "Kom ihåg ordet! Låt inte imposters få reda på det."}</p>
     </PhaseTransition>

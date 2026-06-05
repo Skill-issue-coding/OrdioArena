@@ -3,7 +3,7 @@
 import PhaseTransition from "@/components/game/PhaseTransition";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useImpostorGame } from "@/hooks/gamecontext";
+import { useImpostorGame } from "@/hooks/newgamecontext";
 import { cn, isStringEmptyOrOnlySpaces } from "@/lib/utils";
 import { useWebsocketContext } from "@/hooks/websocketcontext";
 import { useState } from "react";
@@ -19,12 +19,12 @@ export function InputPhase() {
   const { users } = useLobbyContext();
   const [wordSubmission, setWordSubmission] = useState<string>("");
 
-  if (!game || !game.roundState || !game.phaseState || !game.activePlayers || !user || !users) return null;
+  if (!user || !users) return null;
 
-  const isImpostor = game.roundState.role === "impostor";
+  const isImpostor = game.role === "impostor";
 
   const sendWordSubmission = () => {
-    if (game.phaseState?.current_player !== user.user_id) {
+    if (game.current_player !== user.user_id) {
       ToastError("Det är inte din tur!");
       return;
     }
@@ -35,9 +35,9 @@ export function InputPhase() {
     sendEvent("game_submit_word", { word: wordSubmission });
   };
 
-  const submittedWords = game.phaseState.words_cycle;
-  const activePlayers = game.activePlayers;
-  const isCurrentPlayer = game.phaseState.current_player === user.user_id;
+  const submittedWords = game.rounds[game.current_round]?.submissions ?? {};
+  const activePlayers = game.active_players;
+  const isCurrentPlayer = game.current_player === user.user_id;
 
   return (
     <PhaseTransition phaseKey="input">

@@ -16,9 +16,10 @@ QUERY_SPECS = [
     ("video_games", "video_games.sparql"),
     ("swedish_tv_and_film", "swedish_tv_and_film.sparql"),
     ("swedish_music", "swedish_music.sparql"),
-    ("swedish_food", "swedish_food.sparql"),             
+    ("swedish_food", "swedish_food.sparql"),
     ("swedish_characters", "swedish_characters.sparql"),
-    ("swedish_geography", "swedish_geography.sparql"),  
+    ("swedish_geography", "swedish_geography.sparql"),
+    ("apps_and_platforms", "apps_and_platforms.sparql"),
 ]
 
 QUERIES_BY_NAME: Dict[str, Query] = {
@@ -26,7 +27,7 @@ QUERIES_BY_NAME: Dict[str, Query] = {
     for name, filename in QUERY_SPECS
 }
 
-DEFAULT_QUERY_NAMES = [name for name, _ in QUERY_SPECS]
+DEFAULT_QUERY_NAMES = ["apps_and_platforms"]
 QUERIES: List[Query] = [QUERIES_BY_NAME[name] for name in DEFAULT_QUERY_NAMES]
 
 def get_query(name: str) -> Query:

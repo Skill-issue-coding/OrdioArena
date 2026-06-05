@@ -1,7 +1,7 @@
 "use client";
 
 import { Crown, Users } from "lucide-react";
-import { User } from "@/lib/game/types";
+import { User } from "@/lib/game/game";
 import { useLobbyContext } from "@/hooks/lobbycontext";
 import { useUserContext } from "@/hooks/usercontext";
 import { cn } from "@/lib/utils";
@@ -13,11 +13,11 @@ interface PlayerListProps {
   className?: string;
 }
 
-function PlayerAvatar({ name, color }: { name: string; color: string }) {
+export function PlayerAvatar({ name, color, className }: { name: string; color: string; className?: string }) {
   //const initials = name.split(" ").map(n => n[0]).join("").toUpperCase();
   const split = name.split(" ");
   return (
-    <div className="flex items-center justify-center w-10 h-10 font-bold text-white border-2 rounded-full font-body border-card shrink-0" style={{ backgroundColor: color, boxShadow: `0 3px 0 0 ${color}88` }}>
+    <div className={cn("flex items-center justify-center w-10 h-10 font-bold text-white border-2 rounded-full font-body border-card shrink-0", className)} style={{ backgroundColor: color, boxShadow: `0 3px 0 0 ${color}88` }}>
       {/*style={{ backgroundColor: p.color, boxShadow: `0 3px 0 0 ${p.color}88` }} */}
       {split.length >= 2 ? `${split[0][0]}${split[1][0]}` : name[0]}
     </div>

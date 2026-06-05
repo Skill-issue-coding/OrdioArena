@@ -62,3 +62,41 @@ export const snapIn = (options: SnapInOptions = {}): PopInMotion => {
     transition: { delay, duration: duration * 0.75, ease },
   };
 };
+
+export type GameResultCardOptions = {
+  delay?: number;
+  isWinner?: boolean;
+  index?: number;
+};
+
+export const gameResultCardPopIn = ({ delay = 0, isWinner = false, index = 0 }: GameResultCardOptions): PopInMotion => {
+  const yBounce = isWinner ? [0, -8, 0] : [0, -4, 0];
+
+  const floatDuration = isWinner ? 2.5 : 3 + (index % 3) * 0.2;
+
+  return {
+    initial: { opacity: 0, scale: 0.4 },
+    animate: {
+      opacity: 1,
+      scale: 1,
+      y: yBounce,
+    },
+    transition: {
+      // 1. Entrance Transitions
+      opacity: { delay, duration: 0.3, ease: "easeOut" },
+      scale: {
+        delay,
+        type: "spring",
+        stiffness: isWinner ? 350 : 250, // Winner pops in sharper
+        damping: isWinner ? 12 : 16,
+      },
+      // 2. Continuous Idle Transition
+      y: {
+        delay: delay + 0.4, // Wait for the entrance pop to mostly finish
+        duration: floatDuration,
+        repeat: Infinity,
+        ease: "easeInOut",
+      },
+    },
+  };
+};

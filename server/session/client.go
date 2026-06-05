@@ -45,6 +45,7 @@ func (c *Client) WritePump() {
 	defer func() {
 		ticker.Stop()
 		c.Conn.Close()
+		c.Hub.Unregister <- c
 	}()
 
 	for {
@@ -192,7 +193,7 @@ func (c *Client) ReadPump() {
 
 			if c.Lobby != nil {
 				select {
-				case c.Lobby.SyncRequests <- struct{}{}:
+				case c.Lobby.ProfileUpdateRequests <- struct{}{}:
 				default:
 				}
 			}
@@ -263,7 +264,7 @@ func (c *Client) ReadPump() {
 				continue
 			}
 			select {
-			case c.Lobby.SyncRequests <- struct{}{}:
+			case c.Lobby.SyncRequest <- c:
 			default:
 			}
 

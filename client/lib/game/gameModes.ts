@@ -1,6 +1,6 @@
 //export type GameModeId = "impostor" | "contexto" | "synonym" | "antimatch";
 
-import { GameMode } from "./types";
+import { GameMode } from "./game";
 export type GameModeColor = "green" | "pink" | "blue" | "yellow" | "red";
 
 export interface GameModeConfig {
@@ -33,8 +33,8 @@ export const GAME_MODES: GameModeConfig[] = [
     title: "Hitta Impostern",
     description: "En spelare får ett unikt ord. Försök att tillsammans hitta impostern innan det är försent!",
     icon: "🕵️",
-    players: "4-12 spelare",
-    min_players: 4,
+    players: "3-12 spelare",
+    min_players: 3,
     color: "red",
     textClass: "text-game-red",
   },
@@ -192,15 +192,6 @@ export const MODE_SETTINGS: Record<GameMode, ModeSetting[]> = {
       max: 5,
       step: 1,
       default: 3,
-    },
-    {
-      key: "max_distance",
-      label: "Max Avstånd",
-      type: "slider",
-      min: 0.1,
-      max: 1.0,
-      step: 0.1,
-      default: 0.5,
     },
   ],
 };

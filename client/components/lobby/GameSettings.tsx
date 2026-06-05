@@ -10,7 +10,7 @@ import { useEffect } from "react";
 import { useLobbyContext } from "@/hooks/lobbycontext";
 import { useUserContext } from "@/hooks/usercontext";
 import { useWebsocketContext } from "@/hooks/websocketcontext";
-import { GameMode, LobbyState } from "@/lib/game/types";
+import { GameMode, LobbyState } from "@/lib/game/game";
 
 export function GameModeSelector() {
   const { sendEvent } = useWebsocketContext();
@@ -30,15 +30,16 @@ export function GameModeSelector() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {GAME_MODES.map((m) => {
           const active = mode === m.id;
+          const isValidMode = m.id === "anti_match" || m.id === "impostor";
           return (
             <button
               key={m.id}
-              disabled={disabled || m.id !== "impostor"}
+              disabled={disabled && !isValidMode}
               onClick={() => handleModeChange(m.id)}
               className={cn(
                 "relative text-left rounded-lg border-2 p-3 transition-all flex items-center gap-3",
                 active ? `bg-card border-current ${m.textClass} shadow-md` : "bg-muted/40 border-border hover:border-muted-foreground/40",
-                disabled || m.id !== "impostor" ? "cursor-not-allowed pointer-events-none opacity-50" : "cursor-pointer opacity-80",
+                disabled || !isValidMode ? "cursor-not-allowed pointer-events-none opacity-50" : "cursor-pointer opacity-80",
               )}>
               <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-2xl shrink-0", `bg-game-${m.color}`)}>{m.icon}</div>
               <div className="flex-1 min-w-0">

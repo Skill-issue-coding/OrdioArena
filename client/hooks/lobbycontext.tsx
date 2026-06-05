@@ -15,12 +15,12 @@
  * ```
  */
 
-import { ChatMessage, LobbyState } from "@/lib/game/types";
 import { ToastSucess } from "@/lib/toast-functions";
 import { WSSendEventType, WSSendPayloadMap, WSReceivedPayloadMap } from "@/lib/websocket/types";
 import { useRouter } from "next/navigation";
 import { createContext, ReactNode, useContext, useEffect, useState, useRef } from "react";
 import { useWebsocketContext } from "./websocketcontext";
+import { ChatMessage, LobbyState } from "@/lib/game/lobby";
 
 /**
  * Typed sendMessage function. The generic parameter T constrains the payload
@@ -62,6 +62,10 @@ export function useLobbyContext() {
   const context = useContext(LobbyContext);
   if (!context) throw new Error("useLobbyContext must be used within a LobbyContextProvider");
   return context;
+}
+
+export function useOptionalLobbyContext() {
+  return useContext(LobbyContext);
 }
 
 /**
@@ -112,15 +116,12 @@ export function LobbyContextProvider({ children }: { children: ReactNode }) {
       if (lobbyCodeRef.current) router.push(`/lobby/${lobbyCodeRef.current}`);
     });
 
-    const unsubGameStarted = subscribe("game_started", () => router.push(`/lobby/${lobbyCodeRef.current}/game`));
-
     return () => {
       unsubJoinError();
       unsubLeftLobby();
       unsubChat();
       unsubSync();
       unsubJoined();
-      unsubGameStarted();
     };
   }, [router, subscribe]);
 
