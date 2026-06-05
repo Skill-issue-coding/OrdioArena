@@ -1,5 +1,19 @@
 # WordGame - TDDD27 Project
 
+## Deliverables
+
+### Github repo:
+
+The GitLab repo was mirrored and we worked inside a GitHub [repo](https://github.com/Skill-issue-coding/WordGame---TDDD27-Project/tree/main). It has a better commit history and co-contributed commits are visible.
+
+### Project Screencast:
+
+Youtube video of screencast [here](https://youtu.be/nDoNodo492k).
+
+### Individual oral code screen-cast:
+
+_Coming soon..._
+
 ## Preprocessing
 
 The preprocessing pipeline lives in [preprocessing/README.md](preprocessing/README.md). It builds Swedish word and entity embeddings using **Wikipedia2Vec** (trained on Swedish Wikipedia, 300-dimensional), and outputs files into `server/wordfiles/`. Follow the setup and stage order in that document.
