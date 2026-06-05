@@ -47,18 +47,22 @@ State is passed between stages via files in `intermediate/` (git-ignored). The f
 Stages must be run in order from the `preprocessing/` directory. Each stage is idempotent — re-running a completed stage skips already-processed files.
 
 ```bash
-# Data cleaning (run once, or after updating raw source files)
+# Korp data cleaning (run once, or after updating raw Korp files)
 python -m korp.clean_korp
-python -m seeding.clean_seeding   # also handles Maktbarometern
 
 # Main pipeline
-python stage_1.py   # SPARQL → seeding/output/
+python stage_1.py   # SPARQL seeding + seeding cleaning → seeding/output/, intermediate/seeding_cleaned/
 python stage_2.py   # Wikipedia summaries → intermediate/stage2_wiki/
 python stage_3.py   # Wikidata attributes → intermediate/stage3_attrs/
 python stage_4.py   # Korp + Kelly + spaCy → intermediate/stage4_general/
 python stage_5.py   # Wikipedia2Vec encoding → intermediate/stage5_encoded/
 python stage_6.py   # Binary export → server/wordfiles/
 python stage_7.py   # Curated targets + notability scores → server/wordfiles/targets.json
+
+# Optional: replace stage 6 output with PCA-reduced or top-K-filtered vocab
+# python stage_8.py --dims 256         # PCA to 256 dims
+# python stage_8.py --dims 256 --top-k 50
+
 python stage_9.py   # Target quality enrichment → server/wordfiles/targets.json (overwrite)
 ```
 
@@ -82,11 +86,10 @@ flowchart TD
 
     subgraph CLEAN [Data Cleaning]
         CK["korp/clean_korp.py\n→ intermediate/korp_cleaned/korp_combined_cleaned.csv"]
-        CS["seeding/clean_seeding.py\n→ intermediate/seeding_cleaned/*.csv"]
     end
 
-    subgraph STAGE1 [Stage 1 — SPARQL Seeding]
-        S1["stage_1.py\n→ seeding/output/*.csv"]
+    subgraph STAGE1 [Stage 1 — SPARQL Seeding + Cleaning]
+        S1["stage_1.py\nSPARQL queries → seeding/output/*.csv\nclean_seeding → intermediate/seeding_cleaned/*.csv"]
     end
 
     subgraph STAGE2 [Stage 2 — Wikipedia Context]
@@ -102,15 +105,19 @@ flowchart TD
     end
 
     subgraph STAGE5 [Stage 5 — Wikipedia2Vec Encoding]
-        S5["stage_5.py\nEntity vectors from Wikipedia2Vec model\nHarvests top-250 nearest words per entity\nLemmatisation + reverse inflection expansion\n→ intermediate/stage5_encoded/\n   embeddings.npy  (N x 300 float32)\n   vocab.json      (N word strings)\n   lemma_map.json  (surface → lemma)"]
+        S5["stage_5.py\nEntity vectors from Wikipedia2Vec model\nHarvests top-250 nearest words per entity\nLemmatisation + reverse inflection expansion\n→ intermediate/stage5_encoded/\n   embeddings.npy  (N x 300 float32)\n   vocab.json      (N word strings)\n   lemma_map.json  (surface → lemma)\n→ server/wordfiles/\n   sources.json  lemma_map.json"]
     end
 
     subgraph STAGE6 [Stage 6 — Binary Export]
-        S6["stage_6.py\n→ server/wordfiles/\n   vocab.bin   (raw float32, little-endian)\n   vocab.json  (word list)\n   meta.json   ({n, dims, dual})"]
+        S6["stage_6.py\n→ server/wordfiles/\n   vocab.bin   (raw float32, little-endian)\n   vocab.json  (word list)\n   meta.json   ({n, dims, dual})\n   sources.json  lemma_map.json"]
     end
 
     subgraph STAGE7 [Stage 7 — Contexto Targets]
         S7["stage_7.py\nFilters to game-worthy nouns + entities\nAttaches notability_score per target\n→ server/wordfiles/targets.json"]
+    end
+
+    subgraph STAGE8 [Stage 8 — Optional Post-processing]
+        S8["stage_8.py  (optional)\nPCA dimensionality reduction  --dims D\nTop-K vocabulary filter  --top-k K\nRewrites server/wordfiles/vocab.bin, vocab.json, meta.json"]
     end
 
     subgraph STAGE9 [Stage 9 — Target Quality Enrichment]
@@ -119,10 +126,9 @@ flowchart TD
 
     KORP --> CK
     SPARQL --> S1
-    MAKT --> CS
-    S1 --> CS
-    CS --> S2
-    CS --> S7
+    MAKT --> S1
+    S1 --> S2
+    S1 --> S7
     CK --> S4
     KELLY --> S4
     S2 --> S3
@@ -131,8 +137,13 @@ flowchart TD
     S5 --> S6
     S5 --> S7
     S5 --> S9
+    S6 --> S7
+    S7 --> S8
+    S6 --> S8
+    S8 --> S9
     S7 --> S9
     S6 --> GO["Go backend\n(words.Dictionary)"]
+    S8 --> GO
     S9 --> GO
 
     style RAW fill:transparent,stroke:#555,stroke-dasharray:5 5
@@ -144,6 +155,7 @@ flowchart TD
     style STAGE5 fill:transparent,stroke:#333
     style STAGE6 fill:transparent,stroke:#333
     style STAGE7 fill:transparent,stroke:#333
+    style STAGE8 fill:transparent,stroke:#555,stroke-dasharray:5 5
     style STAGE9 fill:transparent,stroke:#333
 ```
 
@@ -174,23 +186,22 @@ All stages import constants and loaders from here. Key exports:
 
 ### Data Cleaning
 
-These run automatically on first pipeline execution, or manually if source data changes.
-
 **`korp/clean_korp.py`**
 
-Reads raw Korp CSV files from `korp/`, filters to valid Swedish words (regex, minimum frequency, length checks), merges all files, and writes `intermediate/korp_cleaned/korp_combined_cleaned.csv` with schema `word, Totalt`.
+Run manually before stage 4, or whenever raw Korp files change. Reads raw Korp CSV files from `korp/`, filters to valid Swedish words (regex, minimum frequency, length checks), merges all files, and writes `intermediate/korp_cleaned/korp_combined_cleaned.csv` with schema `word, Totalt`.
 
 **`seeding/clean_seeding.py`**
 
-- Processes Maktbarometern influencer CSVs from `seeding/maktbarometern/csv/` — normalises Unicode (NFKC), strips emojis and full-width characters, deduplicates by name (keeping highest score across platforms), sorts by score descending. Score thresholds per platform are configurable via `SCORE_LIMITS`.
-- Processes SPARQL output CSVs from `seeding/output/` — resolves raw Wikidata Q-IDs to Swedish labels via the Wikidata API, cleans text, drops duplicates.
-- Outputs all cleaned files to `intermediate/seeding_cleaned/`.
+Called automatically by stage 1 — no separate invocation needed. Exposes two functions:
+
+- `process_seeding()` — resolves raw Wikidata Q-IDs in `seeding/output/*.csv` to Swedish labels via the Wikidata API, cleans text, drops duplicates. Outputs to `intermediate/seeding_cleaned/`.
+- `process_maktbarometern()` — processes Maktbarometern influencer CSVs from `seeding/maktbarometern/csv/` — normalises Unicode (NFKC), strips emojis and full-width characters, deduplicates by name (keeping highest score across platforms), sorts by score descending. Score thresholds per platform are configurable via `SCORE_LIMITS`.
 
 ---
 
-### Stage 1 — SPARQL Seeding [`stage_1.py`](stage_1.py)
+### Stage 1 — SPARQL Seeding + Cleaning [`stage_1.py`](stage_1.py)
 
-Queries Wikidata via SPARQL to fetch named entities grouped by category. Uses query definitions from [`seeding/queries/`](seeding/queries).
+Queries Wikidata via SPARQL to fetch named entities grouped by category. Uses query definitions from [`seeding/queries/`](seeding/queries). After the queries complete, stage 1 calls `clean_seeding.process_seeding()` and `clean_seeding.process_maktbarometern()` so the cleaned seeding data is ready for stage 2 without a separate step.
 
 Current queries:
 
@@ -209,7 +220,7 @@ Current queries:
 
 All queries return at least `*Label` and `sitelinks` columns. Results are sorted by sitelinks descending and capped at 500 entries per category before saving.
 
-- **Output:** `seeding/output/*.csv` — one file per category.
+- **Output:** `seeding/output/*.csv` — one file per category; `intermediate/seeding_cleaned/*.csv` — cleaned and label-resolved copies.
 
 ---
 
@@ -219,7 +230,7 @@ For each entity in the cleaned seeding CSVs, fetches the introductory paragraph 
 
 Includes resume support: already-processed files are skipped, so the stage can safely be interrupted and restarted.
 
-- **Reads:** `intermediate/seeding_cleaned/*.csv`
+- **Reads:** `intermediate/seeding_cleaned/*.csv` (falls back to `seeding/output/` if cleaned dir is missing)
 - **Output:** `intermediate/stage2_wiki/*.csv` — same schema plus a `wiki_summary` column
 
 ---
@@ -288,6 +299,7 @@ All vectors are **L2-normalised** so cosine similarity equals a dot product — 
   - `intermediate/stage5_encoded/vocab.json` — list of N word strings, same row order
   - `intermediate/stage5_encoded/sources.json` — category per entry ("celebrity", "game", …, "general")
   - `intermediate/stage5_encoded/lemma_map.json` — `{surface_form: lemma}` for all attested inflections
+  - `server/wordfiles/sources.json` and `server/wordfiles/lemma_map.json` — written directly so stage 6 can overwrite or confirm them
 
 ---
 
@@ -337,6 +349,22 @@ General vocabulary words (not found in either source) receive a score of `0.0`. 
 
 - **Reads:** `intermediate/stage4_general/general_words.csv`, `intermediate/stage3_attrs/*.csv`, `intermediate/stage5_encoded/vocab.json`, `intermediate/seeding_cleaned/*.csv`
 - **Output:** `server/wordfiles/targets.json` — sorted JSON list with schema `{word, type, notability_score}`
+
+---
+
+### Stage 8 — Optional Post-processing [`stage_8.py`](stage_8.py)
+
+Optional stage that rewrites the `server/wordfiles/` binary output from stage 6. Run it after stage 7 (it requires `targets.json` to validate that no target words are dropped).
+
+Two independent reductions can be combined:
+
+- `--dims D` — PCA-reduces the embedding matrix from 300 to D dimensions using `TruncatedSVD`, then re-normalises. Halves file size at `--dims 150`. Explained variance is printed.
+- `--top-k K` — keeps only the K nearest neighbours of each Contexto target. Has negligible effect when there are thousands of diverse targets (effectively every word ends up near some target). Only useful for small target lists.
+
+If neither flag is passed, stage 8 is equivalent to stage 6.
+
+- **Reads:** `intermediate/stage5_encoded/embeddings.npy`, `intermediate/stage5_encoded/vocab.json`, `server/wordfiles/targets.json`
+- **Output:** overwrites `server/wordfiles/vocab.bin`, `vocab.json`, `meta.json`, `sources.json`
 
 ---
 
