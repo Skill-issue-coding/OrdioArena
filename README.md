@@ -12,7 +12,8 @@ Youtube video of screencast [here](https://youtu.be/nDoNodo492k).
 
 ### Individual oral code screen-cast:
 
-_Coming soon..._
+Marcus Skoglund - marsk090: [here](https://youtu.be/oU8fcmhylus)
+_Others coming soon..._
 
 ## Preprocessing
 
