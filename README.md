@@ -12,7 +12,10 @@ Youtube video of screencast [here](https://youtu.be/nDoNodo492k).
 
 ### Individual oral code screen-cast:
 
-Marcus Skoglund - marsk090: [here](https://youtu.be/oU8fcmhylus) <br />
+Marcus Skoglund - marsk090: [here](https://youtu.be/oU8fcmhylus)
+
+Emil Djurson - emidj236: [here](https://youtu.be/i--FOSL7-WA)
+
 _Others coming soon..._
 
 ## Preprocessing
