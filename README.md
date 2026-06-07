@@ -8,7 +8,7 @@ The GitLab repo was mirrored and we worked inside a GitHub [repo](https://github
 
 ### Project Screencast:
 
-Youtube video of screencast [here](https://youtu.be/nDoNodo492k).
+Video of screencast [here](https://youtu.be/nDoNodo492k)
 
 ### Individual oral code screen-cast:
 
@@ -16,7 +16,7 @@ Marcus Skoglund - marsk090: [here](https://youtu.be/oU8fcmhylus)
 
 Emil Djurson - emidj236: [here](https://youtu.be/i--FOSL7-WA)
 
-_Others coming soon..._
+Anton Martic - antma001: [here](https://liuonline-my.sharepoint.com/:v:/g/personal/antma001_student_liu_se/IQAK3L_XOvnrRrbWEwoyzeFoASLQ2xbgLdfoJ-1Pc4kQIAA?e=umSgM2)
 
 ## Preprocessing
 
