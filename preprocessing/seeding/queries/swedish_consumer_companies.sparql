@@ -1,0 +1,30 @@
+PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX wikibase: <http://wikiba.se/ontology#>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX schema: <http://schema.org/>
+
+SELECT DISTINCT ?company ?companyLabel ?sitelinks WHERE {
+  ?svArticle schema:isPartOf <https://sv.wikipedia.org/> ;
+             schema:about ?company .
+
+  VALUES ?consumerType {
+    wd:Q245081    # clothing/fashion brand
+    wd:Q270791    # supermarket chain
+    wd:Q212108    # restaurant chain
+    wd:Q180792    # department store
+    wd:Q1632403   # automotive manufacturer
+    wd:Q1294722   # food company
+    wd:Q17127081  # retail chain (fashion)
+    wd:Q1968435   # electronic consumer goods manufacturer
+  }
+  ?company wdt:P31 ?consumerType .
+  # No P17 country restriction — IKEA, Porsche, H&M are globally known in Sweden
+  ?company wikibase:sitelinks ?sitelinks .
+  FILTER(?sitelinks > 20)
+
+  SERVICE wikibase:label {
+    bd:serviceParam wikibase:language "sv,en".
+  }
+}
+# NO LIMIT, NO ORDER BY! Python will handle this!

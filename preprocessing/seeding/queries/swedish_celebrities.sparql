@@ -15,7 +15,7 @@ SELECT DISTINCT ?person ?personLabel ?sitelinks WHERE {
           wikibase:sitelinks ?sitelinks .
 
   FILTER(
-    ?sitelinks > 3 && ?sitelinks < 60 &&
+    ?sitelinks > 3 &&
     ?birthDate >= "1990-01-01T00:00:00Z"^^xsd:dateTime
   )
   

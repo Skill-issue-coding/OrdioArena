@@ -12,6 +12,8 @@ BASE_DIR = Path(__file__).resolve().parent / "queries"
 QUERY_SPECS = [
     ("swedish_celebrities", "swedish_celebrities.sparql"),
     ("swedish_companies", "swedish_companies.sparql"),
+    ("swedish_consumer_companies", "swedish_consumer_companies.sparql"),
+    ("swedish_omx_companies", "swedish_omx_companies.sparql"),
     ("global_brands", "global_brands.sparql"),
     ("video_games", "video_games.sparql"),
     ("swedish_tv_and_film", "swedish_tv_and_film.sparql"),

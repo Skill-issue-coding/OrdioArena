@@ -344,6 +344,33 @@ def main() -> None:
         print(f"  Lade till {added:,} Korp-ord. Totalt ord: {len(word_bank):,}")
         log.info(f"Stage 5: added {added} Korp words, total {len(word_bank)}")
 
+    # 6b ── inject domain vocabulary expansions ────────────────────────────────
+    # These words bypass the Kelly/Korp frequency gates in stage_4 because they are
+    # domain-specific but common in Swedish (e.g. "aktier", "atlet"). Only add if
+    # the w2v model has a vector for them — no vector means no useful neighbour info.
+    try:
+        from shared import DOMAIN_VOCAB_EXPANSIONS
+        domain_added = 0
+        domain_missing: list[str] = []
+        for _cat, words in DOMAIN_VOCAB_EXPANSIONS.items():
+            for w in words:
+                w = w.lower().strip()
+                if w in word_bank:
+                    continue
+                try:
+                    v = model.get_word_vector(w)
+                except Exception:
+                    v = None
+                if v is not None:
+                    word_bank[w] = 0.0
+                    domain_added += 1
+                else:
+                    domain_missing.append(w)
+        print(f"  Domänord tillagda: {domain_added:,}  |  saknar vektor: {len(domain_missing):,}")
+        log.info(f"Stage 5: domain vocab added {domain_added}, missing vectors {domain_missing}")
+    except ImportError:
+        pass
+
     # 7 ── forward-lemmatise the bank (needed for reverse step & vector lookup) ─
     # We reuse the Korp lemma cache built in build_reverse_lemma_map.
     # First load/build the cache so we can look up each bank word's lemma.
@@ -453,6 +480,28 @@ def main() -> None:
 
     print(f"  Totalt: {len(vocab):,} poster  (ord saknar vektor: {len(missing_words):,})")
     log.info(f"Stage 5: vocab size {len(vocab)}, missing word vectors {len(missing_words)}")
+
+    # 8b ── domain vocabulary gap report ──────────────────────────────────────
+    # Words in DOMAIN_VOCAB_EXPANSIONS that ended up missing from the final vocab
+    # need Phase 2 (supplementary corpus) to resolve — flag them clearly.
+    try:
+        from shared import DOMAIN_VOCAB_EXPANSIONS
+        vocab_set = set(v.lower() for v in vocab)
+        gap_by_cat: dict[str, list[str]] = {}
+        for cat, words in DOMAIN_VOCAB_EXPANSIONS.items():
+            missing_domain = [w for w in words if w.lower() not in vocab_set]
+            if missing_domain:
+                gap_by_cat[cat] = missing_domain
+        if gap_by_cat:
+            print("\n  [!] Domänord utan vektor (behöver fas 2 / supplementärkorpus):")
+            for cat, words in gap_by_cat.items():
+                print(f"      [{cat}]: {words}")
+                log.warning(f"Stage 5 domain gap [{cat}]: {words}")
+        else:
+            print("  Alla domänord ingår i vokabulären.")
+            log.info("Stage 5: all domain vocab words present in vocab")
+    except ImportError:
+        pass
 
     # 9 ── L2-normalise ────────────────────────────────────────────────────────
     embeddings = np.vstack(vectors).astype(np.float32)

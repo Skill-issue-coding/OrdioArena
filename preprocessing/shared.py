@@ -52,18 +52,50 @@ CATEGORY_KORP_FREQ = {
 ALLOWED_POS = {"NOUN", "PROPN", "VERB", "ADJ"}
 
 CATEGORY_MAPPING = {
-    "swedish_celebrities": ("celebrity",  "celebrities_vectors.csv"),
-    "swedish_music":       ("celebrity",  "celebrities_vectors.csv"),
-    "swedish_companies":   ("company",    "companies_vectors.csv"),
-    "global_brands":       ("company",    "companies_vectors.csv"),
-    "swedish_characters":  ("character",  "characters_vectors.csv"),
-    "swedish_food":        ("food",       "food_vectors.csv"),
-    "swedish_geography":   ("geography",  "geography_vectors.csv"),
-    "swedish_tv_and_film": ("media",      "media_vectors.csv"),
-    "video_games":         ("game",       "games_vectors.csv"),
-    "swedish_culture":     ("culture",    "culture_vectors.csv"),
-    "maktbarometern_cleaned": ("celebrity",  "celebrities_vectors.csv"),
+    "swedish_celebrities":       ("celebrity",  "celebrities_vectors.csv"),
+    "swedish_music":             ("celebrity",  "celebrities_vectors.csv"),
+    "swedish_companies":         ("company",    "companies_vectors.csv"),
+    "swedish_consumer_companies":("company",    "companies_vectors.csv"),
+    "swedish_omx_companies":     ("company",    "companies_vectors.csv"),
+    "global_brands":             ("company",    "companies_vectors.csv"),
+    "swedish_characters":        ("character",  "characters_vectors.csv"),
+    "swedish_food":              ("food",       "food_vectors.csv"),
+    "swedish_geography":         ("geography",  "geography_vectors.csv"),
+    "swedish_tv_and_film":       ("media",      "media_vectors.csv"),
+    "video_games":               ("game",       "games_vectors.csv"),
+    "swedish_culture":           ("culture",    "culture_vectors.csv"),
+    "maktbarometern_cleaned":    ("celebrity",  "celebrities_vectors.csv"),
 }
+
+# Words that bypass Kelly and use a lower Korp threshold (DOMAIN_VOCAB_KORP_MIN).
+# Covers the semantic fields players reach for per entity category.
+DOMAIN_VOCAB_EXPANSIONS: dict[str, list[str]] = {
+    "celebrity": [
+        "atlet", "idrottare", "idrottsman", "mästare", "tränare",
+        "rekord", "tävling", "turnering", "debut", "karriär",
+        "meritlista", "lagkapten", "landslagsman", "landslagsspelare",
+        "olympier", "medalist",
+    ],
+    "company": [
+        "aktier", "aktie", "kapital", "fond", "investering",
+        "portfölj", "vinst", "omsättning", "börs", "marknad",
+        "varumärke", "koncern", "dotterbolag", "vd", "styrelse",
+        "aktieägare", "utdelning", "tillväxt", "kvartal",
+    ],
+    "media": [
+        "säsong", "avsnitt", "regissör", "manus", "premiär",
+        "handling", "karaktär", "rollista", "remake",
+        "dokumentär", "reality", "biofilm", "serietidning",
+    ],
+    "game": [
+        "spelmekanik", "expansion", "patch", "multiplayer",
+        "singleplayer", "gameplay", "esport", "speedrun",
+        "uppdatering", "dlc",
+    ],
+}
+
+# Minimum Korp frequency for domain expansion words (much lower than DEFAULT_KORP_FREQ).
+DOMAIN_VOCAB_KORP_MIN: int = 50
 
 # ── Logging Setup (Terminal clean, File detailed) ─────────────────────────────
 file_handler = logging.FileHandler(BASE_DIR / "pipeline.log", encoding="utf-8")

@@ -148,6 +148,51 @@ def collect_entity_targets(encoded: set[str]) -> list[tuple[str, str]]:
     return entities
 
 
+# Minimum notability_score per category to qualify as a game target.
+# Entities with score > 0 but below this threshold are known to be obscure.
+# Entities with score == 0 are gated by pageviews instead (no sitelinks data available).
+MIN_NOTABILITY_BY_CAT: dict[str, float] = {
+    "celebrity": 0.08,
+    "company":   0.10,
+    "media":     0.05,   # Swedish productions score lower on global sitelinks
+    "character": 0.03,
+    "game":      0.05,
+    "culture":   0.03,
+    "geography": 0.02,
+    "food":      0.02,
+}
+
+# Minimum monthly average sv.wikipedia pageviews to accept as a target.
+# Applied when notability_score == 0 (no sitelinks/Maktbarometern data).
+# Also used as a secondary gate: score_below_threshold AND pageviews_below_min → reject.
+MIN_SV_PAGEVIEWS: float = 300.0
+
+
+def build_pageviews_lookup() -> dict[str, float]:
+    """Read sv_pageviews_monthly_avg from all stage3_attrs CSVs."""
+    lookup: dict[str, float] = {}
+    if not STAGE3_DIR.exists():
+        return lookup
+    for csv_path in sorted(STAGE3_DIR.glob("*.csv")):
+        df = pd.read_csv(csv_path)
+        if "sv_pageviews_monthly_avg" not in df.columns:
+            continue
+        label_col = next((c for c in df.columns if c.endswith("Label")), None)
+        if label_col is None:
+            continue
+        df["sv_pageviews_monthly_avg"] = pd.to_numeric(
+            df["sv_pageviews_monthly_avg"], errors="coerce"
+        ).fillna(0.0)
+        for _, row in df.iterrows():
+            name = str(row[label_col]).strip()
+            if name:
+                key = name.lower()
+                val = float(row["sv_pageviews_monthly_avg"])
+                if val > lookup.get(key, 0.0):
+                    lookup[key] = val
+    return lookup
+
+
 def build_notability_lookup() -> tuple[dict[str, int], dict[str, float]]:
     """
     Scans the cleaned seeding CSVs for sitelinks and maktbarometern_cleaned.csv
@@ -237,6 +282,57 @@ def main():
         )
     notable = sum(1 for t in targets if t["notability_score"] > 0)
     log.info(f"Stage 7: {notable} targets with notability_score > 0")
+
+    # Gate: remove entity targets that are demonstrably obscure.
+    # General vocabulary words are never gated — they are common Swedish nouns.
+    pageviews_lookup = build_pageviews_lookup()
+    has_pageviews    = bool(pageviews_lookup)
+
+    filtered: list[dict] = []
+    skipped_score = 0
+    skipped_pv    = 0
+    for t in targets:
+        if t["type"] == "general":
+            filtered.append(t)
+            continue
+
+        score     = t["notability_score"]
+        threshold = MIN_NOTABILITY_BY_CAT.get(t["type"], 0.05)
+        pageviews = pageviews_lookup.get(t["word"].lower(), 0.0) if has_pageviews else None
+
+        # Score above threshold → always keep.
+        if score >= threshold:
+            filtered.append(t)
+            continue
+
+        # Score > 0 but below threshold: obscure according to sitelinks/Maktbarometern.
+        # Rescue if pageviews show real Swedish readership.
+        if score > 0:
+            if pageviews is not None and pageviews >= MIN_SV_PAGEVIEWS:
+                filtered.append(t)  # high pageviews override low sitelinks
+                continue
+            skipped_score += 1
+            continue
+
+        # Score == 0: no sitelinks data. Rely entirely on pageviews.
+        if pageviews is not None:
+            if pageviews >= MIN_SV_PAGEVIEWS:
+                filtered.append(t)
+            else:
+                skipped_pv += 1
+        else:
+            # No pageviews data available yet — keep to avoid over-filtering.
+            filtered.append(t)
+
+    log.info(
+        f"Stage 7: gating removed {skipped_score} (low score) "
+        f"+ {skipped_pv} (low pageviews) targets"
+    )
+    print(
+        f"  Notabilitetsfilter: tog bort {skipped_score} (låg poäng) "
+        f"+ {skipped_pv} (låga sidvisningar) entiteter"
+    )
+    targets = filtered
 
     with OUT_FILE.open("w", encoding="utf-8") as f:
         json.dump(targets, f, ensure_ascii=False, indent=2)

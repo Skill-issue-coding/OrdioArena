@@ -6,6 +6,7 @@ import pandas as pd
 import requests
 import time
 import re
+from datetime import datetime, timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -156,6 +157,74 @@ def fetch_wikidata_labels(qids, session, limiter):
             
     return labels
 
+PAGEVIEWS_API = "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/sv.wikipedia/all-access/all-agents"
+
+def fetch_sv_pageviews_avg(titles: list, session: requests.Session) -> dict:
+    """Return {title: monthly_avg_views} for each title from sv.wikipedia (trailing 12 months).
+
+    Returns 0.0 for titles with no Swedish Wikipedia article or any fetch error.
+    Wikimedia Analytics API allows ~100 req/s with User-Agent set — no heavy rate limit needed.
+    """
+    today = datetime.utcnow()
+    end_str   = today.strftime("%Y%m") + "01"
+    start_str = (today - timedelta(days=365)).strftime("%Y%m") + "01"
+
+    results: dict = {}
+    for title in titles:
+        if not title or not isinstance(title, str) or not title.strip():
+            continue
+        encoded = requests.utils.quote(title.strip().replace(" ", "_"), safe="")
+        url = f"{PAGEVIEWS_API}/{encoded}/monthly/{start_str}/{end_str}"
+        try:
+            time.sleep(0.05)  # 20 req/s — well within Wikimedia limits
+            resp = session.get(url, timeout=10)
+            if resp.status_code == 404:
+                results[title] = 0.0
+                continue
+            if resp.status_code != 200:
+                results[title] = 0.0
+                continue
+            items = resp.json().get("items", [])
+            results[title] = sum(i.get("views", 0) for i in items) / len(items) if items else 0.0
+        except Exception:
+            results[title] = 0.0
+    return results
+
+
+def enrich_with_pageviews(output_dir: str, session: requests.Session) -> None:
+    """Add sv_pageviews_monthly_avg column to any stage3 CSV that is missing it."""
+    csv_files = glob.glob(os.path.join(output_dir, "*.csv"))
+    needs_enrichment = [p for p in csv_files
+                        if "sv_pageviews_monthly_avg" not in pd.read_csv(p, nrows=0).columns]
+    if not needs_enrichment:
+        print("Alla stage3-filer har redan pageview-data.")
+        log.info("Stage 3 pageviews: all files already enriched")
+        return
+
+    print(f"\nHämtar sv.wikipedia-sidvisningar för {len(needs_enrichment)} filer…")
+    log.info(f"Stage 3 pageviews: enriching {len(needs_enrichment)} files")
+
+    for path in needs_enrichment:
+        df = pd.read_csv(path)
+        label_col = next((c for c in df.columns if c.endswith("Label")), None)
+        if not label_col:
+            label_col = "name" if "name" in df.columns else None
+        if not label_col:
+            df["sv_pageviews_monthly_avg"] = 0.0
+            df.to_csv(path, index=False)
+            continue
+
+        titles = df[label_col].dropna().astype(str).tolist()
+        pageviews = fetch_sv_pageviews_avg(titles, session)
+        df["sv_pageviews_monthly_avg"] = df[label_col].map(
+            lambda t: pageviews.get(str(t), 0.0)
+        )
+        df.to_csv(path, index=False)
+        found = (df["sv_pageviews_monthly_avg"] > 0).sum()
+        print(f"  {os.path.basename(path)}: pageviews hittade för {found}/{len(df)} entiteter")
+        log.info(f"Stage 3 pageviews: {os.path.basename(path)} enriched ({found}/{len(df)})")
+
+
 def main():
     if not os.path.exists(INPUT_DIR):
         print(f"Fel: Hittar inte {INPUT_DIR}. Kör stage 2 först!")
@@ -271,6 +340,17 @@ def main():
         log.info(f"Stage 3: {filename} attributes {found_count}/{len(df)}")
         df.to_csv(output_path, index=False)
         log.info(f"Stage 3: wrote {output_path}")
+
+    # Enrich all stage3 output files with Swedish Wikipedia pageview data.
+    # This runs as a separate pass so existing files get the column added without
+    # re-running the expensive Wikidata attribute fetch.
+    print("\n" + "=" * 50)
+    print("STAGE 3b: PAGEVIEW ENRICHMENT")
+    print("=" * 50)
+    enrich_with_pageviews(OUTPUT_DIR, session)
+    print("Stage 3 komplett.")
+    log.info("Stage 3: complete")
+
 
 if __name__ == "__main__":
     main()

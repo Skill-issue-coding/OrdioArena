@@ -1,0 +1,21 @@
+PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX wikibase: <http://wikiba.se/ontology#>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX schema: <http://schema.org/>
+
+SELECT DISTINCT ?company ?companyLabel ?sitelinks WHERE {
+  ?svArticle schema:isPartOf <https://sv.wikipedia.org/> ;
+             schema:about ?company .
+
+  # Listed on Nasdaq OMX Stockholm — all are household Swedish names
+  ?company wdt:P414 wd:Q204677 .
+  ?company wdt:P17 wd:Q34 .    # country: Sweden
+
+  ?company wikibase:sitelinks ?sitelinks .
+
+  SERVICE wikibase:label {
+    bd:serviceParam wikibase:language "sv,en".
+  }
+}
+# NO LIMIT, NO ORDER BY! Python will handle this!
