@@ -1,7 +1,5 @@
-"use client";
-
 /**
- * @file usercontext.tsx
+ * @file Hook.tsx (hooks/user/Hook.tsx)
  * Global React context that owns the local user profile.
  *
  * Architecture:
@@ -16,31 +14,30 @@
  * ```
  */
 
-import { LocalStorageProfile } from "@/lib/game/game";
-import { ToastError, ToastSucess } from "@/lib/toast-functions";
-import { tryCatch } from "@/lib/try-catch";
-import axios from "axios";
-import { createContext, ReactNode, useContext, useEffect, useState } from "react";
-import { WSReceivedPayloadMap } from "@/lib/websocket/types";
-import { useWebsocketContext } from "./websocketcontext";
-import { User } from "@/lib/game/user";
+import { createContext, type ReactNode, useContext, useEffect, useState } from "react"
+import axios from "axios"
+import { ToastError, ToastSucess } from "@/lib/ToastFunctions"
+import { tryCatch } from "@/lib/try-catch"
+import { useWebsocketContext } from "@/hooks/websocket/Hook"
+import type { LocalStorageProfile, User } from "@/hooks/user/types"
+import type { WSReceivedPayloadMap } from "@/hooks/websocket/types"
 
 export interface UserContextProps {
   /**
    * The current player's profile as assigned/confirmed by the server.
    * Null until the connected_to_hub event is received.
    */
-  user: User | null;
+  user: User | null
 
   /**
    * Optimistically update the local user profile and emit an update_user
    * event to the server. The server will propagate the change to all lobby
    * members via sync_gamestate.
    */
-  updateUser: (updates: Partial<User>) => Promise<void>;
+  updateUser: (updates: Partial<User>) => Promise<void>
 }
 
-export const UserContext = createContext<UserContextProps | null>(null);
+export const UserContext = createContext<UserContextProps | null>(null)
 
 /**
  * Access the current user state and updater.
@@ -51,9 +48,9 @@ export const UserContext = createContext<UserContextProps | null>(null);
  * ```
  */
 export function useUserContext() {
-  const context = useContext(UserContext);
-  if (!context) throw new Error("useUserContext must be used within a UserProvider");
-  return context;
+  const context = useContext(UserContext)
+  if (!context) throw new Error("useUserContext must be used within a UserProvider")
+  return context
 }
 
 /**
@@ -65,21 +62,21 @@ export function useUserContext() {
  * ```
  */
 export const GetLocalStorageProfile = (): LocalStorageProfile | undefined => {
-  const stored = typeof window !== "undefined" ? localStorage.getItem("profile") : null;
-  if (!stored) return undefined;
+  const stored = typeof window !== "undefined" ? localStorage.getItem("profile") : null
+  if (!stored) return undefined
   try {
-    return JSON.parse(stored) as LocalStorageProfile;
+    return JSON.parse(stored) as LocalStorageProfile
   } catch (e) {
-    console.error("Could not load profile: ", e);
-    return undefined;
+    console.error("Could not load profile: ", e)
+    return undefined
   }
-};
+}
 
 /** Persist the profile to localStorage in the browser. */
 const SaveLocalStorageProfile = (profile: LocalStorageProfile) => {
-  if (typeof window === "undefined") return;
-  localStorage.setItem("profile", JSON.stringify(profile));
-};
+  if (typeof window === "undefined") return
+  localStorage.setItem("profile", JSON.stringify(profile))
+}
 
 /**
  * Request a server-generated username for a user id.
@@ -90,17 +87,17 @@ const SaveLocalStorageProfile = (profile: LocalStorageProfile) => {
  * ```
  */
 export async function GetNewUsername(userId: string): Promise<string> {
-  const url = process.env.NEXT_PUBLIC_BACKEND_PATH ? `${process.env.NEXT_PUBLIC_BACKEND_PATH}/game/username` : `http://localhost:8080/game/username`;
+  const url = import.meta.env.VITE_PUBLIC_BACKEND_PATH ? `${import.meta.env.VITE_PUBLIC_BACKEND_PATH}/game/username` : `http://localhost:8080/game/username`
   const { data, error } = await tryCatch(
     axios.post<{ username: string; error?: string }>(url, {
       user_id: userId,
-    }),
-  );
+    })
+  )
 
-  if (error) throw error;
-  if (!data.data.username) throw new Error(data.data.error ?? "Could not fetch username");
+  if (error) throw error
+  if (!data.data.username) throw new Error(data.data.error ?? "Could not fetch username")
 
-  return data.data.username;
+  return data.data.username
 }
 
 /**
@@ -114,14 +111,14 @@ export async function GetNewUsername(userId: string): Promise<string> {
  * ```
  */
 export function UserProvider({ children }: { children: ReactNode }) {
-  const { sendEvent, subscribe } = useWebsocketContext();
-  const [user, setUser] = useState<WSReceivedPayloadMap["connected_to_hub"]["user"] | null>(null);
+  const { sendEvent, subscribe } = useWebsocketContext()
+  const [user, setUser] = useState<WSReceivedPayloadMap["connected_to_hub"]["user"] | null>(null)
 
   // On connected_to_hub, merge the server-assigned profile with any saved localStorage preferences.
   useEffect(() => {
     const unsubscribe = subscribe("connected_to_hub", (payload) => {
-      const serverUser = payload.user as User;
-      const profile = GetLocalStorageProfile();
+      const serverUser = payload.user as User
+      const profile = GetLocalStorageProfile()
 
       if (profile) {
         // Merge local storage preferences with server-assigned user data
@@ -129,65 +126,65 @@ export function UserProvider({ children }: { children: ReactNode }) {
           ...serverUser,
           username: profile.username ?? serverUser.username,
           background: profile.background ?? serverUser.background,
-        };
+        }
 
-        setUser(mergeUser);
+        setUser(mergeUser)
 
         // Tell the server about our locally stored username/background
         sendEvent("update_user", {
           username: mergeUser.username,
           background: mergeUser.background,
-        });
+        })
       } else {
-        setUser(serverUser);
+        setUser(serverUser)
       }
 
-      ToastSucess("Välkommen till OrdioArena!");
-    });
+      ToastSucess("Välkommen till OrdioArena!")
+    })
 
     // Cleanup the listener when the provider unmounts
-    return unsubscribe;
-  }, [subscribe, sendEvent]);
+    return unsubscribe
+  }, [subscribe, sendEvent])
 
   /**
    * updateUser applies a partial update to the local user state optimistically
    * and emits an update_user event to the server.
    */
   const updateUser = async (updates: Partial<Pick<User, "username" | "background">>) => {
-    const currentUser = user;
-    if (!currentUser) return;
+    const currentUser = user
+    if (!currentUser) return
 
-    let nextUpdates = { ...updates };
-    const trimmedUsername = updates.username?.trim();
+    let nextUpdates = { ...updates }
+    const trimmedUsername = updates.username?.trim()
 
     if (trimmedUsername === "") {
       try {
-        const newUsername = await GetNewUsername(currentUser.user_id);
-        nextUpdates = { ...nextUpdates, username: newUsername };
+        const newUsername = await GetNewUsername(currentUser.user_id)
+        nextUpdates = { ...nextUpdates, username: newUsername }
       } catch (error) {
-        ToastError("Kunde inte skapa nytt anvandarnamn");
-        return;
+        ToastError("Kunde inte skapa nytt anvandarnamn")
+        return
       }
     }
 
-    sendEvent("update_user", nextUpdates);
+    sendEvent("update_user", nextUpdates)
 
     setUser((prev) => {
-      if (!prev) return null;
+      if (!prev) return null
 
-      const existingProfile = GetLocalStorageProfile() || ({} as LocalStorageProfile);
+      const existingProfile = GetLocalStorageProfile() || ({} as LocalStorageProfile)
 
       SaveLocalStorageProfile({
         ...existingProfile,
         username: nextUpdates.username ?? prev.username,
         background: nextUpdates.background ?? prev.background,
-      });
+      })
 
-      return { ...prev, ...nextUpdates };
-    });
-  };
+      return { ...prev, ...nextUpdates }
+    })
+  }
 
-  const value: UserContextProps = { user, updateUser };
+  const value: UserContextProps = { user, updateUser }
 
-  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>
 }
