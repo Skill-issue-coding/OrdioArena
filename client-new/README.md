@@ -9,16 +9,54 @@
 
 ## Routing & Pages
 
-| NextJS File                                  | Done | New File                        | Notes |
-| -------------------------------------------- | :--: | ------------------------------- | ----- |
-| `app/page.tsx`                               |  ✓   | `pages/HomePage.tsx`            |       |
-| `app/loading.tsx`                            |  ✓   | `components/LoadingSpinner.tsx` |       |
-| `app/not-found.tsx`                          |  ✓   | `components/NotFound.tsx`       |       |
-| `app/lobby/[lobbyCode]/page.tsx`             |  ✓   | `pages/LobbyPage.tsx`           |       |
-| `app/lobby/[lobbyCode]/layout.tsx`           |  ✓   | `router.tsx`                    |       |
-| `app/lobby/[lobbyCode]/game/page.tsx`        |  –   |                                 |       |
-| `app/lobby/[lobbyCode]/game/layout.tsx`      |  ✓   | `router.tsx`                    |       |
-| `app/lobby/[lobbyCode]/game/result/page.tsx` |  –   |                                 |       |
+File-based routing via `@tanstack/router-plugin/vite`. Plugin auto-generates `src/routeTree.gen.ts` on `vite dev`/`build`. `src/router.tsx` creates the router from that generated tree.
+
+### File-based route conventions
+
+| Convention              | Meaning                             |
+| ----------------------- | ----------------------------------- |
+| `routes/__root.tsx`     | Root layout (`createRootRoute`)     |
+| `routes/index.tsx`      | Index page at `/`                   |
+| `routes/foo.tsx`        | Page at `/foo`                      |
+| `routes/foo/route.tsx`  | Layout wrapping all `/foo/*` routes |
+| `routes/foo/index.tsx`  | Index page at `/foo`                |
+| `routes/foo/$param.tsx` | Dynamic segment `/foo/:param`       |
+
+### Route tree
+
+```text
+src/routes/
+  __root.tsx                         ← RootLayout (WS/User/Tooltip providers)
+  index.tsx                          ← / (HomePage)
+  lobby/
+    $lobbyCode/
+      route.tsx                      ← LobbyLayout (Lobby+Game providers, LobbyChat)
+      index.tsx                      ← /lobby/$lobbyCode (LobbyPage)
+      game/
+        route.tsx                    ← GameLayout (passthrough Outlet)
+        index.tsx                    ← /lobby/$lobbyCode/game (GamePage)
+        result.tsx                   ← /lobby/$lobbyCode/game/result (ResultPage)
+```
+
+### Adding new routes
+
+1. Create file under `src/routes/` following conventions above
+2. Export `Route` using `createFileRoute("/your/path")({ component: ... })`
+3. Vite plugin regenerates `routeTree.gen.ts` automatically on save
+
+### NextJS → TanStack Router mapping
+
+| NextJS File                                  | Done | New File                                  | Notes                               |
+| -------------------------------------------- | :--: | ----------------------------------------- | ----------------------------------- |
+| `app/page.tsx`                               |  ✓   | `routes/index.tsx`                        |                                     |
+| `app/loading.tsx`                            |  ✓   | `components/LoadingSpinner.tsx`           | `pendingComponent` in `__root.tsx`  |
+| `app/not-found.tsx`                          |  ✓   | `components/NotFound.tsx`                 | `notFoundComponent` in `__root.tsx` |
+| `app/layout.tsx`                             |  ✓   | `routes/__root.tsx`                       |                                     |
+| `app/lobby/[lobbyCode]/page.tsx`             |  ✓   | `routes/lobby/$lobbyCode/index.tsx`       |                                     |
+| `app/lobby/[lobbyCode]/layout.tsx`           |  ✓   | `routes/lobby/$lobbyCode/route.tsx`       |                                     |
+| `app/lobby/[lobbyCode]/game/page.tsx`        |  –   | `routes/lobby/$lobbyCode/game/index.tsx`  |                                     |
+| `app/lobby/[lobbyCode]/game/layout.tsx`      |  ✓   | `routes/lobby/$lobbyCode/game/route.tsx`  |                                     |
+| `app/lobby/[lobbyCode]/game/result/page.tsx` |  –   | `routes/lobby/$lobbyCode/game/result.tsx` |                                     |
 
 ## Hooks
 
