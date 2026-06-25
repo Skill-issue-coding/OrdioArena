@@ -10,9 +10,11 @@ import { popIn } from "@/lib/animation-utils"
 import { motion } from "motion/react"
 import { useTheme } from "@/hooks/theme-provider"
 import { useUserContext } from "@/hooks/user/Hook"
+import { useUIOverlay } from "@/hooks/ui/Hook"
 
 export default function ProfileButton() {
   const { user, updateUser } = useUserContext()
+  const { isOverlayActive } = useUIOverlay()
   const lobby = useOptionalLobbyContext()
   const phase = lobby?.phase
   const [mounted, setMounted] = useState(false)
@@ -47,7 +49,7 @@ export default function ProfileButton() {
 
   const displayName = user?.username ?? "?"
   const displayColor = user?.background ?? BACKGROUND_COLOR_PALETTE[0]
-  const visible = phase !== "game_started" && !location.pathname.endsWith("/game")
+  const visible = phase !== "game_started" && !location.pathname.endsWith("/game") && !isOverlayActive
 
   if (!visible) return null
 

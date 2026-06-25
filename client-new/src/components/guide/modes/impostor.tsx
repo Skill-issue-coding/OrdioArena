@@ -3,8 +3,6 @@ import { AnimatePresence, motion } from "motion/react"
 import { useEffect, useState } from "react"
 import type { GameModeGuide, GuideStepProps } from "../types"
 
-// ─── Step 1: Intro ────────────────────────────────────────────────────────────
-
 const StepIntro = () => (
   <div className="flex flex-col items-center gap-8">
     <motion.div initial={{ scale: 0, rotate: -15 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 300, damping: 18 }} className="rounded-3xl bg-game-purple/10 p-8">
@@ -12,7 +10,7 @@ const StepIntro = () => (
     </motion.div>
 
     <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="max-w-sm text-center font-display text-base text-muted-foreground">
-      Ett <span className="font-bold text-foreground">social deduction</span>-spel om ord. Alla ser ett hemligt ord – men en av er ser ett <span className="font-bold text-game-purple">annat ord</span>. Avslöja spionen.
+      Alla spelare får se ett <span className="font-bold text-foreground">hemligt ord</span> men en person har fått ett <span className="font-bold text-game-purple">helt annat</span>. Kan ni avslöja vem som är the impostor?
     </motion.p>
 
     <div className="flex w-full max-w-xs flex-col gap-2">
@@ -25,8 +23,6 @@ const StepIntro = () => (
     </div>
   </div>
 )
-
-// ─── Step 2: Roles ────────────────────────────────────────────────────────────
 
 const StepRoles = () => {
   const [revealed, setRevealed] = useState(false)
@@ -46,7 +42,7 @@ const StepRoles = () => {
     },
     {
       role: "Impostor",
-      word: "KATT",
+      word: "HUSDJUR",
       color: "text-game-purple",
       bg: "bg-game-purple/10",
       border: "border-game-purple/20",
@@ -82,15 +78,13 @@ const StepRoles = () => {
       </div>
 
       <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.1 }} className="max-w-sm text-center font-display text-sm text-muted-foreground">
-        Normal spelare ser riktiga ordet. Impostorn ser ett <span className="font-semibold text-game-purple">liknande men annorlunda</span> ord – och vet att hen är spionen.
+        Normal spelare ser riktiga ordet. Impostorn ser ett <span className="font-semibold text-game-purple">liknande men annorlunda</span> ord, och vet att hen är impostorn.
       </motion.p>
     </div>
   )
 }
 
-// ─── Step 3: Describe ─────────────────────────────────────────────────────────
-
-const DESCRIPTION = "Fyrbent husdjur..."
+const DESCRIPTION = "Päls"
 
 const StepDescribe = ({ onNext }: GuideStepProps) => {
   const [typed, setTyped] = useState(0)
@@ -146,18 +140,16 @@ const StepDescribe = ({ onNext }: GuideStepProps) => {
       </AnimatePresence>
 
       <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="text-center font-display text-xs text-muted-foreground">
-        Beskriv ditt ord utan att avslöja det direkt – impostorn försöker bluffa!
+        Beskriv ditt ord utan att avslöja det direkt, men om är du impostor? <span className="font-semibold text-game-purple">Bluffa!</span>
       </motion.p>
     </div>
   )
 }
 
-// ─── Step 4: Discussion ───────────────────────────────────────────────────────
-
 const SUBMISSIONS = [
-  { player: "Anna", initial: "A", text: "Fyrbent husdjur", impostor: false },
+  { player: "Anna", initial: "A", text: "Päls", impostor: false },
   { player: "Björn", initial: "B", text: "Bäste vännen", impostor: false },
-  { player: "Cecilia", initial: "C", text: "Mjukt och pälsigt", impostor: true },
+  { player: "Cecilia", initial: "C", text: "Gnagare", impostor: true },
   { player: "David", initial: "D", text: "Skäller och leker", impostor: false },
 ]
 
@@ -180,12 +172,10 @@ const StepDiscussion = () => (
     ))}
 
     <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }} className="pt-2 text-center font-display text-xs text-muted-foreground">
-      Vems svar verkar passa ett <span className="font-semibold text-game-purple">annat ord</span>?
+      Vems svar passar <span className="font-semibold text-game-purple">inte in</span>?
     </motion.p>
   </div>
 )
-
-// ─── Step 5: Vote ─────────────────────────────────────────────────────────────
 
 const VOTERS = ["Anna", "Björn", "David"]
 
@@ -217,7 +207,7 @@ const StepVote = () => {
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-game-purple/20 font-display text-sm font-bold text-game-purple">C</div>
         <div>
           <div className="font-display text-sm font-semibold text-foreground">Cecilia</div>
-          <div className="font-display text-xs text-muted-foreground">"Mjukt och pälsigt"</div>
+          <div className="font-display text-xs text-muted-foreground">"Gnagare"</div>
         </div>
         <div className="ml-2 font-display text-xl font-black text-game-purple">
           {votes}
@@ -250,15 +240,13 @@ const StepVote = () => {
       <AnimatePresence>
         {eliminated && (
           <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="text-center font-display text-sm text-muted-foreground">
-            Cecilia var <span className="font-bold text-game-purple">impostorn</span> – de normala spelarna vinner!
+            Cecilia var <span className="font-bold text-game-purple">impostorn</span>, de normala spelarna vinner!
           </motion.p>
         )}
       </AnimatePresence>
     </div>
   )
 }
-
-// ─── Step 6: Win ──────────────────────────────────────────────────────────────
 
 const WIN_CONDITIONS = [
   {
@@ -305,17 +293,15 @@ const StepWin = () => (
     </div>
 
     <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.85 }} className="text-center font-display text-xs text-muted-foreground">
-      Kan ni avslöja spionen – eller lyckas impostorn lura er hela vägen?
+      Kan ni avslöja vem som bluffar eller lyckas impostorn lura er hela vägen?
     </motion.p>
   </div>
 )
 
-// ─── Guide definition ─────────────────────────────────────────────────────────
-
 export const impostorGuide: GameModeGuide = {
   mode: "impostor",
   label: "Impostor",
-  description: "En spion gömmer sig bland er – avslöja vem!",
+  description: "En impostor gömmer sig bland er, avslöja vem!",
   cssVar: "--game-purple",
   icon: Eye,
   steps: [

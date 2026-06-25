@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 import { useLobbyContext } from "@/hooks/lobby/Hook"
 import { useUserContext } from "@/hooks/user/Hook"
 import { useWebsocketContext } from "@/hooks/websocket/Hook"
+import { useUIOverlay } from "@/hooks/ui/Hook"
 
 const formatTime = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 
@@ -18,6 +19,7 @@ export function LobbyChat() {
   const phase = lobby?.phase
   const { user } = useUserContext()
   const { sendEvent } = useWebsocketContext()
+  const { isOverlayActive } = useUIOverlay()
 
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const [open, setOpen] = useState(false)
@@ -35,7 +37,7 @@ export function LobbyChat() {
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
 
-  const visible = mounted && pathname.startsWith("/lobby") && code && phase !== "game_started" && !pathname.endsWith("/game")
+  const visible = mounted && pathname.startsWith("/lobby") && code && phase !== "game_started" && !pathname.endsWith("/game") && !isOverlayActive
   const unread = Math.max(0, chatMessages.length - lastReadIndex)
 
   // Keep badge count (closed state) in sync and reset it when popover opens.

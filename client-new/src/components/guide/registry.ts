@@ -1,19 +1,20 @@
 import { Brain, Eye, Shuffle, Zap } from "lucide-react"
 import type { GameModeGuide, ModeInfo } from "./types"
 import { impostorGuide } from "./modes/impostor"
+import { antiMatchGuide } from "./modes/antimatch"
 
 export const ALL_MODES: ModeInfo[] = [
   {
     mode: "impostor",
     label: "Impostor",
-    description: "En spion gömmer sig bland er – avslöja vem!",
+    description: "En spion gömmer sig bland er, avslöja vem!",
     cssVar: "--game-purple",
     icon: Eye,
   },
   {
     mode: "anti_match",
     label: "Anti-Match",
-    description: "Svara unikt – ingen poäng om du matchar någon annan.",
+    description: "Skriv en synonym, men va unik.",
     cssVar: "--game-orange",
     icon: Shuffle,
   },
@@ -33,10 +34,9 @@ export const ALL_MODES: ModeInfo[] = [
   },
 ]
 
-// Add new guides here as modes are implemented — import the guide and append it to the array.
 export const GUIDE_REGISTRY: GameModeGuide[] = [
   impostorGuide,
-  // antiMatchGuide,
+  antiMatchGuide,
   // contextoBattleGuide,
   // synonymDuelGuide,
 ]

@@ -44,24 +44,16 @@ export function GameGuide({ guide, onBack, onComplete }: GameGuideProps) {
   const accentColor = `var(${guide.cssVar})`
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
+    <div className="absolute flex h-screen w-screen flex-col overflow-hidden bg-background">
       {/* Progress bar */}
       <div className="h-1 bg-muted">
-        <motion.div
-          className="h-full"
-          style={{ backgroundColor: accentColor }}
-          animate={{ width: `${((step + 1) / guide.steps.length) * 100}%` }}
-          transition={{ type: "spring", stiffness: 200, damping: 30 }}
-        />
+        <motion.div className="h-full" style={{ backgroundColor: accentColor }} animate={{ width: `${((step + 1) / guide.steps.length) * 100}%` }} transition={{ type: "spring", stiffness: 200, damping: 30 }} />
       </div>
 
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" />
           <span className="font-display font-medium">Tillbaka</span>
         </button>
         <span className="font-display text-xs text-muted-foreground">
@@ -89,21 +81,11 @@ export function GameGuide({ guide, onBack, onComplete }: GameGuideProps) {
 
       {/* Header */}
       <AnimatePresence mode="wait">
-        <motion.div
-          key={current.id + "-header"}
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 10 }}
-          transition={{ duration: 0.2 }}
-          className="flex items-center justify-center gap-3 py-2"
-        >
-          <div
-            className="rounded-xl p-2.5"
-            style={{ backgroundColor: `color-mix(in oklch, ${accentColor} 12%, transparent)` }}
-          >
-            <Icon className="w-5 h-5" style={{ color: accentColor }} />
+        <motion.div key={current.id + "-header"} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} transition={{ duration: 0.2 }} className="flex items-center justify-center gap-3 py-2">
+          <div className="rounded-xl p-2.5" style={{ backgroundColor: `color-mix(in oklch, ${accentColor} 12%, transparent)` }}>
+            <Icon className="h-5 w-5" style={{ color: accentColor }} />
           </div>
-          <h2 className="font-display font-bold text-xl text-foreground">{current.title}</h2>
+          <h2 className="font-display text-xl font-bold text-foreground">{current.title}</h2>
         </motion.div>
       </AnimatePresence>
 
@@ -125,16 +107,14 @@ export function GameGuide({ guide, onBack, onComplete }: GameGuideProps) {
 
       {/* Navigation */}
       <div className="flex items-center justify-between px-8 py-4">
-        <Button onClick={prev} disabled={step === 0} variant="outline" className="font-display gap-2">
-          <ChevronLeft className="w-4 h-4" />
+        <Button onClick={prev} disabled={step === 0} variant="outline" className="gap-2 font-display">
+          <ChevronLeft className="h-4 w-4" />
           Föregående
         </Button>
-        <span className="hidden sm:block font-mono text-xs text-muted-foreground">
-          ← → för att navigera
-        </span>
-        <Button onClick={next} className="font-display gap-2">
+        <span className="hidden font-mono text-xs text-muted-foreground sm:block">← → för att navigera</span>
+        <Button onClick={next} className="gap-2 font-display">
           {isLast ? "Klar" : "Nästa"}
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
     </div>
