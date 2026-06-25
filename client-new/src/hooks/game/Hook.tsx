@@ -34,25 +34,25 @@ const DefaultEmptyGame = (mode: GameMode): ImpostorGameState | AntiMatchGameStat
 
 export const NewGameContext = createContext<ActiveGame>({ game: DefaultEmptyGame("impostor"), result: null })
 
-export function useNewGameContext(): ActiveGame {
+export function useGameContext(): ActiveGame {
   const ctx = useContext(NewGameContext)
   if (!ctx) throw new Error("useGameContext must be used within a NewGameContextProvider")
   return ctx
 }
 
 export function useImpostorGame(): ImpostorGameState {
-  const { game } = useNewGameContext()
+  const { game } = useGameContext()
   if (game.mode !== "impostor") throw new Error("Invalid use of useImpostorGame, mode must be Impostor in order to useImpostorGame")
   return game
 }
 
 export function useAntiMatchGame(): AntiMatchGameState {
-  const { game } = useNewGameContext()
+  const { game } = useGameContext()
   if (game.mode !== "anti_match") throw new Error("Invalid use of useAntiMatchGame, mode must be AntiMatch in order to useAntiMatchGame")
   return game
 }
 
-export function NewGameContextProvider({ children }: { children: ReactNode }) {
+export function GameContextProvider({ children }: { children: ReactNode }) {
   const { mode, code } = useLobbyContext()
   const { subscribe } = useWebsocketContext()
   const navigate = useNavigate()

@@ -6,6 +6,7 @@ import { LobbyContextProvider } from "@/hooks/lobby/Hook"
 import { GameContextProvider } from "@/hooks/game/Hook"
 import { LoadingSpinner } from "@/components/LoadingSpinner"
 import { NotFound } from "@/components/NotFound"
+import { ErrorDisplay } from "@/components/ErrorDisplay"
 import { LobbyChat } from "@/components/lobby/LobbyChat"
 import ThemedToaster from "@/components/themed-toaster"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -49,7 +50,7 @@ function GameLayout() {
   return <Outlet />
 }
 
-const rootRoute = createRootRoute({ component: RootLayout, notFoundComponent: NotFound })
+const rootRoute = createRootRoute({ component: RootLayout, notFoundComponent: NotFound, errorComponent: ErrorDisplay })
 
 // /
 const indexRoute = createRoute({
@@ -93,15 +94,9 @@ const resultRoute = createRoute({
   component: ResultPage,
 })
 
-const routeTree = rootRoute.addChildren([
-  indexRoute,
-  lobbyRoute.addChildren([
-    lobbyIndexRoute,
-    gameRoute.addChildren([gameIndexRoute, resultRoute]),
-  ]),
-])
+const routeTree = rootRoute.addChildren([indexRoute, lobbyRoute.addChildren([lobbyIndexRoute, gameRoute.addChildren([gameIndexRoute, resultRoute])])])
 
-export const router = createRouter({ routeTree, defaultPendingComponent: LoadingSpinner })
+export const router = createRouter({ routeTree, defaultPendingComponent: LoadingSpinner, defaultErrorComponent: ErrorDisplay })
 
 declare module "@tanstack/react-router" {
   interface Register {

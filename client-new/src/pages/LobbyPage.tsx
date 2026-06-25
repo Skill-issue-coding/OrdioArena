@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { PlayerList } from "@/components/lobby/PlayerList"
 import { LobbyCodeDisplay } from "@/components/lobby/CodeDisplay"
 import { GameModeSelector, GameSettings } from "@/components/lobby/GameSettings"
-import { QuickGuide } from "@/components/lobby/QuickGuide"
+import { GameGuideSelector } from "@/components/guide/GameGuideSelector"
 
 import { ToastError } from "@/lib/ToastFunctions"
 import { snapIn } from "@/lib/animation-utils"
@@ -50,6 +50,7 @@ export function LobbyView({ code }: { code: string }) {
   const mode = lobby?.mode
   const { sendEvent, connectionStatus } = useWebsocketContext()
   const [hasAttemptedJoin, setHasAttemptedJoin] = useState(false)
+  const [showGuide, setShowGuide] = useState(false)
 
   useEffect(() => {
     if (!code || typeof code !== "string") return
@@ -139,12 +140,16 @@ export function LobbyView({ code }: { code: string }) {
             </motion.div>
           </div>
           <motion.div className="mt-6 flex flex-col gap-6 sm:flex-row" {...snapIn({ delay: 0.24, y: 14, rotate: 1.5 })}>
-            <QuickGuide>
+            {/* <QuickGuide>
               <Button variant="glass" size="lg" className="min-h-12 flex-1 gap-2 font-body">
                 Snabb Guide
                 <BookOpenText />
               </Button>
-            </QuickGuide>
+            </QuickGuide> */}
+            <Button variant="glass" size="lg" onClick={() => setShowGuide(true)} className="min-h-12 flex-1 gap-2 font-body">
+              Snabb Guide
+              <BookOpenText />
+            </Button>
 
             <Button
               size="lg"
@@ -177,6 +182,7 @@ export function LobbyView({ code }: { code: string }) {
           </motion.div>
         </div>
       </div>
+      {showGuide && <GameGuideSelector onClose={() => setShowGuide(false)} />}
     </div>
   )
 }
