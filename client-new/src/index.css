@@ -36,15 +36,15 @@
   --color-heat-warm: oklch(0.8612 0.1676 87.99);
   --color-heat-cold: oklch(0.646 0.1914 24.21);
 
-  --color-chart-1:  var(--chart-1);
-  --color-chart-2:  var(--chart-2);
-  --color-chart-3:  var(--chart-3);
-  --color-chart-4:  var(--chart-4);
-  --color-chart-5:  var(--chart-5);
-  --color-chart-6:  var(--chart-6);
-  --color-chart-7:  var(--chart-7);
-  --color-chart-8:  var(--chart-8);
-  --color-chart-9:  var(--chart-9);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
+  --color-chart-9: var(--chart-9);
   --color-chart-10: var(--chart-10);
   --color-chart-11: var(--chart-11);
   --color-chart-12: var(--chart-12);
@@ -120,15 +120,15 @@
   --heat-cold: oklch(0.6471 0.1913 24.19);
 
   /* 12 perceptually-distinct chart line colours, one per hue sector */
-  --chart-1:  oklch(0.65 0.21 20);
-  --chart-2:  oklch(0.73 0.17 50);
-  --chart-3:  oklch(0.82 0.17 88);
-  --chart-4:  oklch(0.77 0.18 130);
-  --chart-5:  oklch(0.72 0.20 150);
-  --chart-6:  oklch(0.70 0.15 183);
-  --chart-7:  oklch(0.70 0.14 203);
-  --chart-8:  oklch(0.70 0.16 225);
-  --chart-9:  oklch(0.65 0.18 258);
+  --chart-1: oklch(0.65 0.21 20);
+  --chart-2: oklch(0.73 0.17 50);
+  --chart-3: oklch(0.82 0.17 88);
+  --chart-4: oklch(0.77 0.18 130);
+  --chart-5: oklch(0.72 0.20 150);
+  --chart-6: oklch(0.70 0.15 183);
+  --chart-7: oklch(0.70 0.14 203);
+  --chart-8: oklch(0.70 0.16 225);
+  --chart-9: oklch(0.65 0.18 258);
   --chart-10: oklch(0.60 0.22 290);
   --chart-11: oklch(0.65 0.21 330);
   --chart-12: oklch(0.65 0.20 355);
@@ -188,15 +188,15 @@
   --heat-cold: oklch(66.61% 0.1774 23.2);
 
   /* chart colours — brighter for dark backgrounds */
-  --chart-1:  oklch(0.72 0.21 20);
-  --chart-2:  oklch(0.78 0.17 50);
-  --chart-3:  oklch(0.86 0.17 88);
-  --chart-4:  oklch(0.82 0.18 130);
-  --chart-5:  oklch(0.77 0.20 150);
-  --chart-6:  oklch(0.76 0.15 183);
-  --chart-7:  oklch(0.76 0.14 203);
-  --chart-8:  oklch(0.76 0.16 225);
-  --chart-9:  oklch(0.72 0.18 258);
+  --chart-1: oklch(0.72 0.21 20);
+  --chart-2: oklch(0.78 0.17 50);
+  --chart-3: oklch(0.86 0.17 88);
+  --chart-4: oklch(0.82 0.18 130);
+  --chart-5: oklch(0.77 0.20 150);
+  --chart-6: oklch(0.76 0.15 183);
+  --chart-7: oklch(0.76 0.14 203);
+  --chart-8: oklch(0.76 0.16 225);
+  --chart-9: oklch(0.72 0.18 258);
   --chart-10: oklch(0.66 0.22 290);
   --chart-11: oklch(0.72 0.21 330);
   --chart-12: oklch(0.72 0.20 355);
@@ -215,17 +215,39 @@
 }
 
 @keyframes loading {
-  0%   { opacity: 0.2; }
-  20%  { opacity: 1; }
-  100% { opacity: 0.2; }
+  0% {
+    opacity: 0.2;
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.2;
+  }
 }
 
 @keyframes marquee {
-  0%   { transform: translateX(0); }
-  10%  { transform: translateX(0); }
-  50%  { transform: translateX(-20%); }
-  60%  { transform: translateX(-20%); }
-  100% { transform: translateX(0); }
+  0% {
+    transform: translateX(0);
+  }
+
+  10% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(-20%);
+  }
+
+  60% {
+    transform: translateX(-20%);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
 }
 
 @layer base {
@@ -247,11 +269,17 @@
     @apply font-sans;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-display;
   }
 
-  button:not(:disabled), [role="button"]:not(:disabled) {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
     cursor: pointer;
   }
 }
@@ -279,28 +307,85 @@
     box-shadow: 0 3px 0 0 oklch(0.2886 0.0464 274.51 / 0.1);
   }
 
-  .text-game-pink   { color: var(--game-pink); }
-  .text-game-blue   { color: var(--game-blue); }
-  .text-game-yellow { color: var(--game-yellow); }
-  .text-game-green  { color: var(--game-green); }
-  .text-game-purple { color: var(--game-purple); }
-  .text-game-orange { color: var(--game-orange); }
+  .text-game-pink {
+    color: var(--game-pink);
+  }
 
-  .bg-game-pink   { background-color: var(--game-pink); }
-  .bg-game-blue   { background-color: var(--game-blue); }
-  .bg-game-yellow { background-color: var(--game-yellow); }
-  .bg-game-green  { background-color: var(--game-green); }
-  .bg-game-purple { background-color: var(--game-purple); }
-  .bg-game-orange { background-color: var(--game-orange); }
-  .bg-game-red    { background-color: var(--game-red); }
+  .text-game-blue {
+    color: var(--game-blue);
+  }
 
-  .border-game-pink   { border-color: var(--game-pink); }
-  .border-game-blue   { border-color: var(--game-blue); }
-  .border-game-yellow { border-color: var(--game-yellow); }
-  .border-game-green  { border-color: var(--game-green); }
-  .border-game-purple { border-color: var(--game-purple); }
-  .border-game-orange { border-color: var(--game-orange); }
-  .border-game-red    { border-color: var(--game-red); }
+  .text-game-yellow {
+    color: var(--game-yellow);
+  }
+
+  .text-game-green {
+    color: var(--game-green);
+  }
+
+  .text-game-purple {
+    color: var(--game-purple);
+  }
+
+  .text-game-orange {
+    color: var(--game-orange);
+  }
+
+  .bg-game-pink {
+    background-color: var(--game-pink);
+  }
+
+  .bg-game-blue {
+    background-color: var(--game-blue);
+  }
+
+  .bg-game-yellow {
+    background-color: var(--game-yellow);
+  }
+
+  .bg-game-green {
+    background-color: var(--game-green);
+  }
+
+  .bg-game-purple {
+    background-color: var(--game-purple);
+  }
+
+  .bg-game-orange {
+    background-color: var(--game-orange);
+  }
+
+  .bg-game-red {
+    background-color: var(--game-red);
+  }
+
+  .border-game-pink {
+    border-color: var(--game-pink);
+  }
+
+  .border-game-blue {
+    border-color: var(--game-blue);
+  }
+
+  .border-game-yellow {
+    border-color: var(--game-yellow);
+  }
+
+  .border-game-green {
+    border-color: var(--game-green);
+  }
+
+  .border-game-purple {
+    border-color: var(--game-purple);
+  }
+
+  .border-game-orange {
+    border-color: var(--game-orange);
+  }
+
+  .border-game-red {
+    border-color: var(--game-red);
+  }
 
   .heat-hot {
     background: linear-gradient(90deg, var(--heat-hot), oklch(77.83% 0.199 151.27 / 0.7));

@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="purpleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#B026FF" /><stop offset="100%" stop-color="#8A19D6" />
+    </linearGradient>
+    <linearGradient id="pinkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF3B7A" /><stop offset="100%" stop-color="#D81B5B" />
+    </linearGradient>
+    <linearGradient id="yellowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD000" /><stop offset="100%" stop-color="#EAA800" />
+    </linearGradient>
+  </defs>
+
+  <!-- Magnifying Glass Handle -->
+  <path d="M 330 330 L 440 440" stroke="#1E293B" stroke-width="48" stroke-linecap="round" />
+  <path d="M 360 360 L 410 410" stroke="url(#purpleGradient)" stroke-width="16" stroke-linecap="round" />
+
+  Magnifying Glass Lens (Container)
+  <circle cx="210" cy="210" r="160" fill="transparent" stroke="#1E293B" stroke-width="16" />
+  
+  <!-- Lens Reflection -->
+  <path d="M 100 130 A 110 110 0 0 1 180 80" fill="none" stroke="#F4F4F9" stroke-width="16" stroke-linecap="round" />
+
+  <!-- Letter O (purple) -->
+  <g transform="translate(90, 160) rotate(-10, 38, 44)">
+    <animateTransform attributeName="transform" type="translate" additive="sum" values="0,0; 0,-6; 0,0" dur="2.4s" begin="0s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1" />
+    <rect x="0" y="8" width="76" height="88" rx="16" fill="#1E293B" />
+    <rect x="0" y="0" width="76" height="88" rx="16" fill="url(#purpleGradient)" stroke="#1E293B" stroke-width="8" />
+    <text x="38" y="62" font-family="'Space Grotesk', system-ui, sans-serif" font-size="48" font-weight="900" text-anchor="middle" fill="#FFFFFF">O</text>
+  </g>
+
+  <!-- Letter R (yellow) -->
+  <g transform="translate(180, 120) rotate(5, 38, 44)">
+    <animateTransform attributeName="transform" type="translate" additive="sum" values="0,0; 0,-8; 0,0" dur="2.4s" begin="0.3s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1" />
+    <rect x="0" y="8" width="76" height="88" rx="16" fill="#1E293B" />
+    <rect x="0" y="0" width="76" height="88" rx="16" fill="url(#yellowGradient)" stroke="#1E293B" stroke-width="8" />
+    <text x="38" y="62" font-family="'Space Grotesk', system-ui, sans-serif" font-size="48" font-weight="900" text-anchor="middle" fill="#1E293B">R</text>
+  </g>
+
+  <!-- Letter D (pink) - The "Impostor" tile scaling differently -->
+  <g transform="translate(250, 190) rotate(-4, 38, 44)">
+    <animateTransform attributeName="transform" type="translate" additive="sum" values="0,0; 0,-5; 0,0" dur="2.4s" begin="0.6s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1" />
+    <rect x="0" y="8" width="76" height="88" rx="16" fill="#1E293B" />
+    <rect x="0" y="0" width="76" height="88" rx="16" fill="url(#pinkGradient)" stroke="#1E293B" stroke-width="8" stroke-dasharray="8 8" />
+    <text x="38" y="62" font-family="'Space Grotesk', system-ui, sans-serif" font-size="48" font-weight="900" text-anchor="middle" fill="#FFFFFF">D</text>
+  </g>
+</svg>

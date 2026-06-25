@@ -1,12 +1,12 @@
-import { createContext, type ReactNode, useContext, useEffect, useState } from "react"
-import { useWebsocketContext } from "@/hooks/websocket/Hook"
-import { useLobbyContext } from "@/hooks/lobby/Hook"
-import { toTimers } from "./timers/Timers"
-import { useNavigate } from "@tanstack/react-router"
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import type { AntiMatchGameState, AntiMatchResult } from "./antimatch/types"
+import type { ImpostorGameState, ImpostorRole } from "./impostor/types"
 import type { GameTimers } from "./timers/types"
 import type { GameMode, GamePhase } from "./types"
-import type { ImpostorGameState, ImpostorRole } from "./impostor/types"
-import type { AntiMatchGameState, AntiMatchResult } from "./antimatch/types"
+import { useLobbyContext } from "../lobby/Hook"
+import { useWebsocketContext } from "../websocket/Hook"
+import { useNavigate } from "@tanstack/react-router"
+import { toTimers } from "./timers/Timers"
 
 // Wire payload shape for impostor result (differs from legacy ImpostorGameResult type)
 export type ImpostorGameResultPayload = {
@@ -34,20 +34,20 @@ const DefaultEmptyGame = (mode: GameMode): ImpostorGameState | AntiMatchGameStat
 
 export const NewGameContext = createContext<ActiveGame>({ game: DefaultEmptyGame("impostor"), result: null })
 
-export function useGameContext(): ActiveGame {
+export function useNewGameContext(): ActiveGame {
   const ctx = useContext(NewGameContext)
   if (!ctx) throw new Error("useGameContext must be used within a NewGameContextProvider")
   return ctx
 }
 
 export function useImpostorGame(): ImpostorGameState {
-  const { game } = useGameContext()
+  const { game } = useNewGameContext()
   if (game.mode !== "impostor") throw new Error("Invalid use of useImpostorGame, mode must be Impostor in order to useImpostorGame")
   return game
 }
 
 export function useAntiMatchGame(): AntiMatchGameState {
-  const { game } = useGameContext()
+  const { game } = useNewGameContext()
   if (game.mode !== "anti_match") throw new Error("Invalid use of useAntiMatchGame, mode must be AntiMatch in order to useAntiMatchGame")
   return game
 }
@@ -224,7 +224,7 @@ export function NewGameContextProvider({ children }: { children: ReactNode }) {
     )
 
     return () => unsubs.forEach((u) => u())
-  }, [subscribe, mode])
+  }, [subscribe, mode, navigate])
 
   return <NewGameContext.Provider value={{ game: gameState, result: gameResult }}>{children}</NewGameContext.Provider>
 }

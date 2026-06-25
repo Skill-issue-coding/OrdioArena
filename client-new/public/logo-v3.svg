@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="c-purple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#B026FF"/><stop offset="100%" stop-color="#8A19D6"/>
+    </linearGradient>
+    <linearGradient id="c-yellow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD000"/><stop offset="100%" stop-color="#EAA800"/>
+    </linearGradient>
+    <linearGradient id="c-pink" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF3B7A"/><stop offset="100%" stop-color="#D81B5B"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Outer circle shadow -->
+  <circle cx="260" cy="262" r="220" fill="#050B15" opacity="0.4"/>
+
+  <!-- Main circle (colosseum from above) -->
+  <circle cx="256" cy="256" r="220" fill="#1E293B" stroke="#B026FF" stroke-width="10"/>
+
+  <!-- Seating tier rings -->
+  <circle cx="256" cy="256" r="185" fill="none" stroke="rgba(176,38,255,0.35)" stroke-width="3"/>
+  <circle cx="256" cy="256" r="160" fill="none" stroke="rgba(176,38,255,0.25)" stroke-width="2.5"/>
+  <circle cx="256" cy="256" r="137" fill="none" stroke="rgba(176,38,255,0.18)" stroke-width="2"/>
+
+  <!-- Inner arena floor -->
+  <circle cx="256" cy="256" r="130" fill="#243350" stroke="rgba(176,38,255,0.3)" stroke-width="2"/>
+
+  <!-- Arena gate lights (8 positions at r=174) -->
+  <circle cx="256" cy="82" r="5" fill="#B026FF" opacity="0.5">
+    <animate attributeName="opacity" values="0.5;0.15;0.5" dur="3s" begin="0s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="379" cy="133" r="5" fill="#B026FF" opacity="0.5">
+    <animate attributeName="opacity" values="0.5;0.15;0.5" dur="3s" begin="0.375s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="430" cy="256" r="5" fill="#B026FF" opacity="0.5">
+    <animate attributeName="opacity" values="0.5;0.15;0.5" dur="3s" begin="0.75s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="379" cy="379" r="5" fill="#B026FF" opacity="0.5">
+    <animate attributeName="opacity" values="0.5;0.15;0.5" dur="3s" begin="1.125s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="256" cy="430" r="5" fill="#B026FF" opacity="0.5">
+    <animate attributeName="opacity" values="0.5;0.15;0.5" dur="3s" begin="1.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="133" cy="379" r="5" fill="#B026FF" opacity="0.5">
+    <animate attributeName="opacity" values="0.5;0.15;0.5" dur="3s" begin="1.875s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="82" cy="256" r="5" fill="#B026FF" opacity="0.5">
+    <animate attributeName="opacity" values="0.5;0.15;0.5" dur="3s" begin="2.25s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="133" cy="133" r="5" fill="#B026FF" opacity="0.5">
+    <animate attributeName="opacity" values="0.5;0.15;0.5" dur="3s" begin="2.625s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- O tile (purple) -->
+  <g transform="translate(134, 211)">
+    <animateTransform attributeName="transform" type="translate" additive="sum"
+      values="0,0; 0,-7; 0,0" dur="2.4s" begin="0s" repeatCount="indefinite"
+      calcMode="spline" keyTimes="0;0.5;1" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"/>
+    <rect x="0" y="8" width="76" height="90" rx="13" fill="#050B15" opacity="0.6"/>
+    <rect x="0" y="0" width="76" height="90" rx="13" fill="url(#c-purple)" stroke="#1E293B" stroke-width="7"/>
+    <text x="38" y="64" font-family="'Space Grotesk', system-ui, sans-serif"
+          font-size="50" font-weight="900" text-anchor="middle" fill="#FFFFFF">O</text>
+  </g>
+
+  <!-- R tile (yellow) -->
+  <g transform="translate(218, 211)">
+    <animateTransform attributeName="transform" type="translate" additive="sum"
+      values="0,0; 0,-7; 0,0" dur="2.4s" begin="0.28s" repeatCount="indefinite"
+      calcMode="spline" keyTimes="0;0.5;1" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"/>
+    <rect x="0" y="8" width="76" height="90" rx="13" fill="#050B15" opacity="0.6"/>
+    <rect x="0" y="0" width="76" height="90" rx="13" fill="url(#c-yellow)" stroke="#1E293B" stroke-width="7"/>
+    <text x="38" y="64" font-family="'Space Grotesk', system-ui, sans-serif"
+          font-size="50" font-weight="900" text-anchor="middle" fill="#1E293B">R</text>
+  </g>
+
+  <!-- D tile (pink) -->
+  <g transform="translate(302, 211)">
+    <animateTransform attributeName="transform" type="translate" additive="sum"
+      values="0,0; 0,-7; 0,0" dur="2.4s" begin="0.56s" repeatCount="indefinite"
+      calcMode="spline" keyTimes="0;0.5;1" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"/>
+    <rect x="0" y="8" width="76" height="90" rx="13" fill="#050B15" opacity="0.6"/>
+    <rect x="0" y="0" width="76" height="90" rx="13" fill="url(#c-pink)" stroke="#1E293B" stroke-width="7"/>
+    <text x="38" y="64" font-family="'Space Grotesk', system-ui, sans-serif"
+          font-size="50" font-weight="900" text-anchor="middle" fill="#FFFFFF">D</text>
+  </g>
+</svg>

@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="purpleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#B026FF" />
+      <stop offset="100%" stop-color="#8A19D6" />
+    </linearGradient>
+
+    <linearGradient id="pinkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF3B7A" />
+      <stop offset="100%" stop-color="#D81B5B" />
+    </linearGradient>
+
+    <linearGradient id="yellowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD000" />
+      <stop offset="100%" stop-color="#EAA800" />
+    </linearGradient>
+  </defs>
+
+  <!-- Bubble -->
+  <path d="M 100 120 H 412 A 40 40 0 0 1 452 160 V 320 A 40 40 0 0 1 412 360 H 200 L 100 450 L 150 360 H 100 A 40 40 0 0 1 60 320 V 160 A 40 40 0 0 1 100 120 Z"
+        fill="#FFFFFF"
+        stroke="#1E293B"
+        stroke-width="16"
+        stroke-linejoin="round" />
+
+  <!-- Letter O (purple) -->
+  <g transform="translate(118, 186) rotate(-5, 38, 44)">
+    <animateTransform
+      attributeName="transform"
+      type="translate"
+      additive="sum"
+      values="0,0; 0,-7; 0,0"
+      dur="2.4s"
+      begin="0s"
+      repeatCount="indefinite"
+      calcMode="spline"
+      keyTimes="0;0.5;1"
+      keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"
+    />
+    <rect x="0" y="8" width="76" height="88" rx="16" fill="#1E293B" />
+    <rect x="0" y="0" width="76" height="88" rx="16" fill="url(#purpleGradient)" stroke="#1E293B" stroke-width="8" />
+    <text x="38" y="62" font-family="'Space Grotesk', system-ui, sans-serif" font-size="48" font-weight="900" text-anchor="middle" fill="#FFFFFF">O</text>
+  </g>
+
+  <!-- Letter R (yellow) -->
+  <g transform="translate(218, 196) rotate(3, 38, 44)">
+    <animateTransform
+      attributeName="transform"
+      type="translate"
+      additive="sum"
+      values="0,0; 0,-7; 0,0"
+      dur="2.4s"
+      begin="0.28s"
+      repeatCount="indefinite"
+      calcMode="spline"
+      keyTimes="0;0.5;1"
+      keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"
+    />
+    <rect x="0" y="8" width="76" height="88" rx="16" fill="#1E293B" />
+    <rect x="0" y="0" width="76" height="88" rx="16" fill="url(#yellowGradient)" stroke="#1E293B" stroke-width="8" />
+    <text x="38" y="62" font-family="'Space Grotesk', system-ui, sans-serif" font-size="48" font-weight="900" text-anchor="middle" fill="#1E293B">R</text>
+  </g>
+
+  <!-- Letter D (pink) -->
+  <g transform="translate(318, 186) rotate(-3, 38, 44)">
+    <animateTransform
+      attributeName="transform"
+      type="translate"
+      additive="sum"
+      values="0,0; 0,-7; 0,0"
+      dur="2.4s"
+      begin="0.56s"
+      repeatCount="indefinite"
+      calcMode="spline"
+      keyTimes="0;0.5;1"
+      keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"
+    />
+    <rect x="0" y="8" width="76" height="88" rx="16" fill="#1E293B" />
+    <rect x="0" y="0" width="76" height="88" rx="16" fill="url(#pinkGradient)" stroke="#1E293B" stroke-width="8" />
+    <text x="38" y="62" font-family="'Space Grotesk', system-ui, sans-serif" font-size="48" font-weight="900" text-anchor="middle" fill="#FFFFFF">D</text>
+  </g>
+
+</svg>

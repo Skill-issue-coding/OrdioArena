@@ -1,0 +1,60 @@
+.bg-fx-root {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.bg-fx-wash {
+    position: absolute;
+    inset: 0;
+    background-color: var(--bg);
+    background-image:
+        radial-gradient(circle at 18% 12%, oklch(0.5619 0.2421 290 / 0.20) 0%, transparent 45%),
+        radial-gradient(circle at 86% 88%, oklch(0.6798 0.2001 3.54 / 0.18) 0%, transparent 45%),
+        radial-gradient(circle at 92% 18%, oklch(0.6738 0.1691 251.9 / 0.16) 0%, transparent 45%),
+        radial-gradient(circle at 8% 88%, oklch(0.866574 0.164655 88.6837 / 0.14) 0%, transparent 45%),
+        radial-gradient(circle at 50% 50%, oklch(0.7567 0.18 154.63 / 0.06) 0%, transparent 60%);
+    animation: bg-pan 24s ease-in-out infinite alternate;
+}
+
+@keyframes bg-pan {
+    0% {
+        background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%;
+    }
+
+    100% {
+        background-position: 8% -4%, -6% 6%, -8% 4%, 6% -6%, 0% 0%;
+    }
+}
+
+/* === Mesh dots variant === */
+.bg-mesh-stage {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+}
+
+.bg-mesh-dots {
+    position: absolute;
+    inset: -40px;
+    background-image:
+        radial-gradient(circle, oklch(0.5619 0.2421 290 / 0.25) 1.2px, transparent 1.6px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    animation: mesh-breathe 12s ease-in-out infinite alternate;
+}
+
+@keyframes mesh-breathe {
+    0% {
+        transform: scale(1);
+        opacity: 0.55;
+    }
+
+    100% {
+        transform: scale(1.04);
+        opacity: 0.85;
+    }
+}
