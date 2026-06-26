@@ -5,6 +5,7 @@ import { ALL_MODES, GUIDE_REGISTRY } from "./registry"
 import { GameGuide } from "./GameGuide"
 import type { GameModeGuide } from "./types"
 import { useUIOverlay } from "@/hooks/ui/Hook"
+import { useLobbyContext } from "@/hooks/lobby/Hook"
 
 interface GameGuideSelectorProps {
   onClose: () => void
@@ -13,6 +14,7 @@ interface GameGuideSelectorProps {
 export function GameGuideSelector({ onClose }: GameGuideSelectorProps) {
   const [selected, setSelected] = useState<GameModeGuide | null>(null)
   const { setOverlayActive } = useUIOverlay()
+  const { mode: currentGameMode } = useLobbyContext()
 
   useEffect(() => {
     setOverlayActive(true)
@@ -34,6 +36,7 @@ export function GameGuideSelector({ onClose }: GameGuideSelectorProps) {
 
       <div className="grid w-full max-w-2xl grid-cols-2 gap-4">
         {ALL_MODES.map((mode, i) => {
+          const isActiveMode = currentGameMode === mode.mode
           const guide = GUIDE_REGISTRY.find((g) => g.mode === mode.mode)
           const hasGuide = !!guide
           const Icon = mode.icon
@@ -52,6 +55,11 @@ export function GameGuideSelector({ onClose }: GameGuideSelectorProps) {
                 hasGuide ? "cursor-pointer border-border hover:shadow-md" : "cursor-not-allowed border-border/50 opacity-50"
               }`}
             >
+              {isActiveMode && (
+                <span className="absolute top-3 right-3 rounded-full px-2 py-0.5 font-display text-[10px] font-semibold text-white" style={{ backgroundColor: accentColor }}>
+                  Valt spelläge
+                </span>
+              )}
               {!hasGuide && <span className="absolute top-3 right-3 rounded-full bg-muted px-2 py-0.5 font-display text-[10px] font-semibold text-muted-foreground">Kommer snart</span>}
 
               <div

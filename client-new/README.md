@@ -54,9 +54,9 @@ src/routes/
 | `app/layout.tsx`                             |  ✓   | `routes/__root.tsx`                       |                                     |
 | `app/lobby/[lobbyCode]/page.tsx`             |  ✓   | `routes/lobby/$lobbyCode/index.tsx`       |                                     |
 | `app/lobby/[lobbyCode]/layout.tsx`           |  ✓   | `routes/lobby/$lobbyCode/route.tsx`       |                                     |
-| `app/lobby/[lobbyCode]/game/page.tsx`        |  –   | `routes/lobby/$lobbyCode/game/index.tsx`  |                                     |
+| `app/lobby/[lobbyCode]/game/page.tsx`        |  ✓   | `routes/lobby/$lobbyCode/game/index.tsx`  |                                     |
 | `app/lobby/[lobbyCode]/game/layout.tsx`      |  ✓   | `routes/lobby/$lobbyCode/game/route.tsx`  |                                     |
-| `app/lobby/[lobbyCode]/game/result/page.tsx` |  –   | `routes/lobby/$lobbyCode/game/result.tsx` |                                     |
+| `app/lobby/[lobbyCode]/game/result/page.tsx` |  ✓   | `routes/lobby/$lobbyCode/game/result.tsx` |                                     |
 
 ## Hooks
 
@@ -71,37 +71,37 @@ src/routes/
 
 ## Components
 
-| NextJS File                                      | Done | New File                            | Notes    |
-| ------------------------------------------------ | :--: | ----------------------------------- | -------- |
-| `components/background/background.tsx`           |  ✓   | `components/Background.tsx`         |          |
-| `components/home/HomeView.tsx`                   |  ✓   | `pages/HomePage.tsx`                |          |
-| `components/lobby/CodeDisplay.tsx`               |  ✓   | `components/lobby/CodeDisplay.tsx`  |          |
-| `components/lobby/GameModeCard.tsx`              |  ×   |                                     | Not used |
-| `components/lobby/GameSettings.tsx`              |  ✓   | `components/lobby/GameSettings.tsx` |          |
-| `components/lobby/LobbyChat.tsx`                 |  ✓   | `components/lobby/LobbyChat.tsx`    |          |
-| `components/lobby/LobbyView.tsx`                 |  ✓   | `pages/LobbyPage.tsx`               |          |
-| `components/lobby/PlayerList.tsx`                |  ✓   | `components/lobby/PlayerList.tsx`   |          |
-| `components/lobby/QuickGuide.tsx`                |  ✓   | `components/lobby/QuickGuide.tsx`   |          |
-| `components/game/CountdownBar.tsx`               |  –   |                                     |          |
-| `components/game/GameView.tsx`                   |  –   |                                     |          |
-| `components/game/GetReadyScreen.tsx`             |  –   |                                     |          |
-| `components/game/PhaseTransition.tsx`            |  –   |                                     |          |
-| `components/game/gamemodes/AntiMatchView.tsx`    |  –   |                                     |          |
-| `components/game/gamemodes/ContextoGameView.tsx` |  –   |                                     |          |
-| `components/game/gamemodes/MainImposterView.tsx` |  –   |                                     |          |
-| `components/game/gamemodes/SynonymDuelView.tsx`  |  –   |                                     |          |
-| `components/game/impostor/DiscussionPhase.tsx`   |  –   |                                     |          |
-| `components/game/impostor/InputPhase.tsx`        |  –   |                                     |          |
-| `components/game/impostor/IntermediatePhase.tsx` |  –   |                                     |          |
-| `components/game/impostor/ResultPhase.tsx`       |  –   |                                     |          |
-| `components/game/impostor/RevealPhase.tsx`       |  –   |                                     |          |
-| `components/game/impostor/StatsDialog.tsx`       |  –   |                                     |          |
-| `components/game/impostor/VotePhase.tsx`         |  –   |                                     |          |
-| `components/game/antimatch/FinalScorePhase.tsx`  |  –   |                                     |          |
-| `components/game/antimatch/InputPhase.tsx`       |  –   |                                     |          |
-| `components/game/antimatch/RoundResultPhase.tsx` |  –   |                                     |          |
-| `components/user/UserProfileButton.tsx`          |  ✓   |                                     |          |
-| `components/themed-toaster.tsx`                  |  ✓   | `components/themed-toaster.tsx`     |          |
+| NextJS File                                      | Done | New File                                                | Notes                         |
+| ------------------------------------------------ | :--: | ------------------------------------------------------- | ----------------------------- |
+| `components/background/background.tsx`           |  ✓   | `components/Background.tsx`                             |                               |
+| `components/home/HomeView.tsx`                   |  ✓   | `pages/HomePage.tsx`                                    |                               |
+| `components/lobby/CodeDisplay.tsx`               |  ✓   | `components/lobby/CodeDisplay.tsx`                      |                               |
+| `components/lobby/GameModeCard.tsx`              |  ×   |                                                         | Not used                      |
+| `components/lobby/GameSettings.tsx`              |  ✓   | `components/lobby/GameSettings.tsx`                     |                               |
+| `components/lobby/LobbyChat.tsx`                 |  ✓   | `components/lobby/LobbyChat.tsx`                        |                               |
+| `components/lobby/LobbyView.tsx`                 |  ✓   | `pages/LobbyPage.tsx`                                   |                               |
+| `components/lobby/PlayerList.tsx`                |  ✓   | `components/lobby/PlayerList.tsx`                       |                               |
+| `components/lobby/QuickGuide.tsx`                |  ✓   | `components/lobby/QuickGuide.tsx`                       |                               |
+| `components/game/CountdownBar.tsx`               |  ✓   | `components/game/CountDownBar.tsx`                      |                               |
+| `components/game/GameView.tsx`                   |  ✓   | `pages/GamePage.tsx`                                    | Rewworked to just be the page |
+| `components/game/GetReadyScreen.tsx`             |  ✓   | `components/game/GetReadyScreen.tsx`                    |                               |
+| `components/game/PhaseTransition.tsx`            |  ✓   | `components/game/PhaseTransition.tsx`                   |                               |
+| `components/game/gamemodes/AntiMatchView.tsx`    |  ✓   | `components/game/antimatch/AntiMatchView.tsx`           |                               |
+| `components/game/gamemodes/ContextoGameView.tsx` |  ✓   | `components/game/contexto/ContextoGameView.tsx`         |                               |
+| `components/game/gamemodes/MainImposterView.tsx` |  ✓   | `components/game/impostor/ImpostorView.tsx`             | renamed to `ImpostorView.tsx` |
+| `components/game/gamemodes/SynonymDuelView.tsx`  |  ✓   | `components/game/synonymduel/SynonymDuelView.tsx`       |                               |
+| `components/game/impostor/DiscussionPhase.tsx`   |  ✓   | `components/game/impostor/phases/DiscussionPhase.tsx`   |                               |
+| `components/game/impostor/InputPhase.tsx`        |  ✓   | `components/game/impostor/phases/InputPhase.tsx`        |                               |
+| `components/game/impostor/IntermediatePhase.tsx` |  ✓   | `components/game/impostor/phases/IntermediatePhase.tsx` |                               |
+| `components/game/impostor/ResultPhase.tsx`       |  ✓   | `components/game/impostor/phases/ResultPhase.tsx`       |                               |
+| `components/game/impostor/RevealPhase.tsx`       |  ✓   | `components/game/impostor/phases/RevealPhase.tsx`       |                               |
+| `components/game/impostor/StatsDialog.tsx`       |  ✓   | `components/game/impostor/phases/StatsDialog.tsx`       |                               |
+| `components/game/impostor/VotePhase.tsx`         |  ✓   | `components/game/impostor/phases/VotePhase.tsx`         |                               |
+| `components/game/antimatch/FinalScorePhase.tsx`  |  ✓   | `components/game/antimatch/phases/FinalScorePhase.tsx`  |                               |
+| `components/game/antimatch/InputPhase.tsx`       |  ✓   | `components/game/antimatch/phases/InputPhase.tsx`       |                               |
+| `components/game/antimatch/RoundResultPhase.tsx` |  ✓   | `components/game/antimatch/phases/RoundResultPhase.tsx` |                               |
+| `components/user/UserProfileButton.tsx`          |  ✓   |                                                         |                               |
+| `components/themed-toaster.tsx`                  |  ✓   | `components/themed-toaster.tsx`                         |                               |
 
 ## Lib
 

@@ -46,7 +46,6 @@ const StepWordAndInput = ({ onNext }: GuideStepProps) => {
     if (typed < TYPED_WORD.length) return
     const t = setTimeout(() => {
       setSubmitted(true)
-      setTimeout(() => onNext?.(), 900)
     }, 600)
     return () => clearTimeout(t)
   }, [typed, onNext])
