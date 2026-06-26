@@ -10,7 +10,7 @@ const barColorMap = {
   red: "heat-cold",
 }
 
-export function CountdownBar() {
+export function CountDownBar() {
   const { game } = useGameContext()
   const timers = game.timers
 

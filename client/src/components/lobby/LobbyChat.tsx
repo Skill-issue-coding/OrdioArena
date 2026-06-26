@@ -9,6 +9,7 @@ import { useLobbyContext } from "@/hooks/lobby/Hook"
 import { useUserContext } from "@/hooks/user/Hook"
 import { useWebsocketContext } from "@/hooks/websocket/Hook"
 import { useUIOverlay } from "@/hooks/ui/Hook"
+import { log } from "@/lib/logger"
 
 const formatTime = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 
@@ -93,6 +94,7 @@ export function LobbyChat() {
   const handleSend = () => {
     if (!code) return
     if (!draft.trim()) return
+    log.lobby.debug("chat send", { code, length: draft.length })
     sendEvent("send_chatmessage", { message: draft })
     setDraft("")
   }

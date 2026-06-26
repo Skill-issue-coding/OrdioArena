@@ -17,6 +17,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { createContext, type ReactNode, useContext, useEffect, useState, useRef } from "react"
 import { ToastSucess } from "@/lib/ToastFunctions"
 import { useWebsocketContext } from "@/hooks/websocket/Hook"
+import { log } from "@/lib/logger"
 import type { WSSendEventType, WSSendPayloadMap, WSReceivedPayloadMap } from "@/hooks/websocket/types"
 import type { ChatMessage, LobbyState } from "./types"
 
@@ -89,9 +90,13 @@ export function LobbyContextProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const unsubJoinError = subscribe("join_error", () => navigate({ to: "/" }))
+    const unsubJoinError = subscribe("join_error", () => {
+      log.lobby.warn("join error, redirecting home")
+      navigate({ to: "/" })
+    })
 
     const unsubLeftLobby = subscribe("left_lobby", () => {
+      log.lobby.info("left lobby", { code: lobbyCodeRef.current })
       setChatMessages([])
       setLobbyState(null)
       lobbyCodeRef.current = ""
@@ -106,11 +111,13 @@ export function LobbyContextProvider({ children }: { children: ReactNode }) {
 
     const unsubSync = subscribe("sync_gamestate", (payload) => {
       lobbyCodeRef.current = payload.lobbystate.code
+      log.lobby.debug("state sync", { code: payload.lobbystate.code, phase: payload.lobbystate.phase, mode: payload.lobbystate.mode, players: Object.keys(payload.lobbystate.users ?? {}).length })
       setLobbyState(payload.lobbystate)
       if (payload.message) ToastSucess(payload.message)
     })
 
     const unsubJoined = subscribe("joined_lobby", () => {
+      log.lobby.info("joined lobby", { code: lobbyCodeRef.current })
       if (lobbyCodeRef.current) navigate({ to: `/lobby/${lobbyCodeRef.current}` })
     })
 

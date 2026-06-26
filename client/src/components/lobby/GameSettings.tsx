@@ -2,12 +2,13 @@ import { cn } from "@/lib/utils"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Slider } from "@/components/ui/slider"
 import { Timer, RefreshCw, Check, HatGlasses, RulerDimensionLine, Languages } from "lucide-react"
-import { useState, useRef } from "react"
+import { useState, useRef, type CSSProperties } from "react"
 import { useEffect } from "react"
 import { useWebsocketContext } from "@/hooks/websocket/Hook"
 import { useUserContext } from "@/hooks/user/Hook"
 import { useLobbyContext } from "@/hooks/lobby/Hook"
 import type { GameMode } from "@/hooks/game/types"
+import { log } from "@/lib/logger"
 import { BASE_GAME_MODES, getMode, MODE_SETTINGS } from "@/lib/game/config"
 import type { LobbyState } from "@/hooks/lobby/types"
 
@@ -21,6 +22,7 @@ export function GameModeSelector() {
 
   const handleModeChange = (newMode: GameMode) => {
     if (!isHost) return
+    log.lobby.info("host changed mode", { from: mode, to: newMode })
     sendEvent("change_mode", { mode: newMode })
   }
 
@@ -41,7 +43,9 @@ export function GameModeSelector() {
                 disabled || !isValidMode ? "pointer-events-none cursor-not-allowed opacity-50" : "cursor-pointer opacity-80"
               )}
             >
-              <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", `bg-game-${m.color}`)}><m.icon className="h-5 w-5 text-white" /></div>
+              <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", `bg-game-${m.color}`)}>
+                <m.icon className="h-5 w-5 text-white" />
+              </div>
               <div className="min-w-0 flex-1">
                 <div className={cn("truncate font-display text-sm font-bold", active ? m.textClass : "text-foreground")}>{m.title}</div>
                 <div className="truncate text-xs text-muted-foreground">{m.players}</div>
@@ -76,6 +80,7 @@ export function GameSettings() {
   const maxImpostors = Math.max(1, Math.floor(playerCount / 3))
 
   const [localvalues, setLocalValues] = useState<Record<string, number>>({})
+  const draggingRef = useRef<Set<string>>(new Set())
   const lastSendRef = useRef<Record<string, number>>({})
 
   const isHost = user?.user_id === host
@@ -83,6 +88,7 @@ export function GameSettings() {
 
   const handleSettingUpdate = (key: string, value: number) => {
     if (!isHost) return
+    log.lobby.info("host changed setting", { mode: currentMode, key, value })
     sendEvent("update_setting", { key, value })
   }
 
@@ -98,7 +104,15 @@ export function GameSettings() {
 
   useEffect(() => {
     if (settings) {
-      setLocalValues(settings as Record<string, number>)
+      setLocalValues((prev) => {
+        const merged = { ...prev }
+        for (const [key, value] of Object.entries(settings as Record<string, number>)) {
+          if (!draggingRef.current.has(key)) {
+            merged[key] = value
+          }
+        }
+        return merged
+      })
     } else {
       const defaults = settingsConfig.reduce(
         (acc, setting) => {
@@ -112,22 +126,18 @@ export function GameSettings() {
   }, [settings, settingsConfig])
 
   const handleSliderDrag = (key: string, val: number) => {
+    draggingRef.current.add(key)
     setLocalValues((prev) => ({ ...prev, [key]: val }))
 
     const now = Date.now()
-    const lastSend = lastSendRef.current[key] || 0
-
-    if (now - lastSend > 100) {
+    if (now - (lastSendRef.current[key] ?? 0) >= 50) {
       handleSettingUpdate(key, val)
       lastSendRef.current[key] = now
     }
   }
 
   return (
-    <div
-      className={cn("grid w-full grid-cols-1 gap-8 md:grid-cols-2", disabled && "opacity-50")}
-      style={{ "--primary": `var(--game-${modeColor})`, "--primary-foreground": "oklch(1 0 0)", "--ring": `var(--game-${modeColor})` } as React.CSSProperties}
-    >
+    <div className={cn("grid w-full grid-cols-1 gap-8 md:grid-cols-2", disabled && "opacity-50")} style={{ "--primary": `var(--game-${modeColor})`, "--primary-foreground": "oklch(1 0 0)", "--ring": `var(--game-${modeColor})` } as CSSProperties}>
       {settingsConfig.map((setting) => {
         const currentValue = localvalues[setting.key] ?? setting.default
         return (
@@ -156,7 +166,10 @@ export function GameSettings() {
                   step={setting.step}
                   value={[currentValue]}
                   onValueChange={([v]) => handleSliderDrag(setting.key, v)}
-                  onValueCommit={([v]) => handleSettingUpdate(setting.key, v)}
+                  onValueCommit={([v]) => {
+                    handleSettingUpdate(setting.key, v)
+                    setTimeout(() => draggingRef.current.delete(setting.key), 300)
+                  }}
                   className="flex-1"
                 />
                 <span className="w-8 text-right text-sm font-bold tabular-nums">

@@ -11,6 +11,7 @@ import { useImpostorGame } from "@/hooks/game/Hook"
 import { useUserContext } from "@/hooks/user/Hook"
 import { useLobbyContext } from "@/hooks/lobby/Hook"
 import { ToastError } from "@/lib/ToastFunctions"
+import { log } from "@/lib/logger"
 
 export function InputPhase() {
   const { sendEvent } = useWebsocketContext()
@@ -25,13 +26,16 @@ export function InputPhase() {
 
   const sendWordSubmission = () => {
     if (game.current_player !== user.user_id) {
+      log.game.debug("impostor submit ignored, not your turn", { round: game.current_round })
       ToastError("Det är inte din tur!")
       return
     }
     if (isStringEmptyOrOnlySpaces(wordSubmission) || wordSubmission.length > 128) {
+      log.game.warn("impostor submit rejected client-side", { round: game.current_round, length: wordSubmission.length })
       ToastError("Skriv in ett ord")
       return
     }
+    log.game.info("impostor word submit", { round: game.current_round, isImpostor, word: wordSubmission })
     sendEvent("game_submit_word", { word: wordSubmission })
   }
 

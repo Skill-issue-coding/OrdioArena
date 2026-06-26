@@ -3,7 +3,7 @@ import { ResultPhase } from "@/components/game/impostor/phases/ResultPhase"
 import { useGameContext } from "@/hooks/game/Hook"
 import { AnimatePresence } from "motion/react"
 
-export default function ResultPage() {
+export function ResultPage() {
   const { result } = useGameContext()
 
   if (!result) return null

@@ -12,6 +12,7 @@ import { useImpostorGame } from "@/hooks/game/Hook"
 import { useUserContext } from "@/hooks/user/Hook"
 import { useWebsocketContext } from "@/hooks/websocket/Hook"
 import { snapIn } from "@/lib/animation-utils"
+import { log } from "@/lib/logger"
 
 export function DiscussionPhase() {
   const { chatMessages, users } = useLobbyContext()
@@ -62,6 +63,7 @@ export function DiscussionPhase() {
 
   const handleSend = () => {
     if (!draft.trim()) return
+    log.game.debug("discussion chat send", { round: game.current_round, length: draft.length })
     sendEvent("send_chatmessage", { message: draft })
     setDraft("")
     setIsAtBottom(true)

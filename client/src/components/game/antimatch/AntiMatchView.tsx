@@ -4,9 +4,9 @@ import { AnimatePresence } from "motion/react"
 import { GetReadyScreen } from "@/components/game/GetReadyScreen"
 import { useAntiMatchGame } from "@/hooks/game/Hook"
 import { usePhaseCountdown, usePhaseReady } from "@/hooks/game/timers/Timers"
-import { CountDownBar } from "@/components/game/CountDownBar"
 import { InputPhase } from "./phases/InputPhase"
 import { RoundResultPhase } from "./phases/RoundResultPhase"
+import { CountDownBar } from "../CountDownBar"
 
 export function AntiMatchView() {
   const game = useAntiMatchGame()

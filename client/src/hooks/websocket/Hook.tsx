@@ -1,4 +1,5 @@
 import { ToastError, ToastSucess } from "@/lib/ToastFunctions"
+import { log } from "@/lib/logger"
 /**
  * @file Hook.tsx (hooks/websocket/Hook.tsx)
  * Global React context that manages the WebSocket transport layer.
@@ -132,25 +133,30 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
       const url = import.meta.env.VITE_WS_PATH ? `wss://${import.meta.env.VITE_WS_PATH}/ws/game` : `ws://localhost:8080/ws/game`
 
+      log.ws.info("connecting", { url, attempt: attemptRef.current })
       const ws = new WebSocket(url)
       wsRef.current = ws
 
       ws.onopen = () => {
         setConnectionStatus("connected")
+        log.ws.info("connected", { url, afterAttempts: attemptRef.current })
         attemptRef.current = 0 // Reset backoff on successful connection
       }
 
       ws.onerror = () => {
         setConnectionStatus("error")
+        log.ws.error("socket error", { url, attempt: attemptRef.current })
       }
 
-      ws.onclose = () => {
+      ws.onclose = (e) => {
         setConnectionStatus("disconnected")
+        log.ws.warn("socket closed", { code: e.code, reason: e.reason, wasClean: e.wasClean })
 
         // Stop reconnecting if the component unmounted or max attempts reached
         if (isUnmounted) return
 
         if (attemptRef.current >= maxAttempts) {
+          log.ws.error("giving up reconnect", { maxAttempts })
           ToastError("Kunde inte återansluta till servern. Vänligen ladda om sidan.")
           return
         }
@@ -162,7 +168,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         const jitter = Math.random() * 0.5 * backoff
         const delay = backoff + jitter
 
-        console.log(`Reconnecting in ${Math.round(delay)}ms... (Attempt ${attemptRef.current + 1}/${maxAttempts})`)
+        log.ws.info("scheduling reconnect", { delayMs: Math.round(delay), attempt: attemptRef.current + 1, maxAttempts })
 
         timeoutRef.current = setTimeout(() => {
           attemptRef.current++
@@ -174,11 +180,22 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
        * The master message router. Every incoming websocket message hits this first.
        */
       ws.onmessage = (event) => {
-        const parsedEvent = JSON.parse(event.data) as WSReceivedEvent
+        let parsedEvent: WSReceivedEvent
+        try {
+          parsedEvent = JSON.parse(event.data) as WSReceivedEvent
+        } catch (err) {
+          log.ws.error("failed to parse incoming message", { err: String(err), raw: String(event.data).slice(0, 200) })
+          return
+        }
         const { type, payload } = parsedEvent
 
-        if (type === "error") ToastError(payload.message)
+        if (type === "error") {
+          log.ws.warn("server error event", { message: payload.message })
+          ToastError(payload.message)
+        }
         if (type === "success") ToastSucess(payload.message)
+
+        log.ws.debug("recv", { type })
 
         const listeners = subscribersRef.current.get(type as WSReceivedEventType)
         if (listeners) listeners.forEach((callback) => callback(payload))
@@ -205,9 +222,11 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
    */
   const sendEvent: SendMessageType = useCallback((type, payload) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      log.ws.warn("send dropped, socket not open", { type, readyState: wsRef.current?.readyState })
       ToastError("Ej ansluten till servern")
       return
     }
+    log.ws.debug("send", { type })
     wsRef.current.send(JSON.stringify({ type, payload }))
   }, [])
 

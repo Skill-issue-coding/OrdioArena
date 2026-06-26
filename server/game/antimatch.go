@@ -3,6 +3,7 @@ package game
 import (
 	"math"
 	"server/events"
+	"server/logging"
 	"server/util"
 	"server/words"
 	"time"
@@ -54,12 +55,21 @@ func pickAntiMatchTarget(dict *words.Dictionary) (words.Target, bool) {
 		return words.Target{}, false
 	}
 
+	// hasVector reports whether a target resolves to a non-empty word vector.
+	// Targets without one produce NaN cosine distances and corrupt every
+	// player's score for that round, so they must never be picked.
+	hasVector := func(t words.Target) bool {
+		entry, ok := dict.Lookup(t.Word)
+		return ok && len(entry.WordVector) > 0
+	}
+
 	entities := words.EntityTargets(dict.Targets)
 
-	// Prefer entity targets enriched by stage 9 so the per-word threshold is available.
+	// Prefer entity targets enriched by stage 9 (per-word threshold available)
+	// that also have a usable vector.
 	enriched := make([]words.Target, 0, len(entities))
 	for _, t := range entities {
-		if t.AntiHiveThreshold > 0 {
+		if t.AntiHiveThreshold > 0 && hasVector(t) {
 			enriched = append(enriched, t)
 		}
 	}
@@ -67,9 +77,26 @@ func pickAntiMatchTarget(dict *words.Dictionary) (words.Target, bool) {
 		return words.WeightedPickTarget(enriched)
 	}
 
-	// Fall back to any entity target, then to the full list if none exist.
-	if len(entities) > 0 {
-		return words.WeightedPickTarget(entities)
+	// Fall back to any entity target with a vector.
+	entityWithVec := make([]words.Target, 0, len(entities))
+	for _, t := range entities {
+		if hasVector(t) {
+			entityWithVec = append(entityWithVec, t)
+		}
+	}
+	if len(entityWithVec) > 0 {
+		return words.WeightedPickTarget(entityWithVec)
+	}
+
+	// Last resort: any target with a vector, then the full list.
+	anyWithVec := make([]words.Target, 0, len(dict.Targets))
+	for _, t := range dict.Targets {
+		if hasVector(t) {
+			anyWithVec = append(anyWithVec, t)
+		}
+	}
+	if len(anyWithVec) > 0 {
+		return words.WeightedPickTarget(anyWithVec)
 	}
 	return words.WeightedPickTarget(dict.Targets)
 }
@@ -191,6 +218,7 @@ func (g *AntiMatchGame) phaseTimers() GamePhasePayload {
 
 // sendInputPhase broadcasts the start of an input phase with timers and the target word.
 func (g *AntiMatchGame) sendInputPhase() {
+	logging.Game.Info("input phase started", "round", g.roundNumber+1, "total_rounds", g.settings.Rounds, "target", g.target.Word)
 	g.Broadcast(events.AntiMatchInputPhaseEvent, AntiMatchInputPhasePayload{
 		GamePhasePayload: g.phaseTimers(),
 		Phase:            string(AntiMatchPhaseInput),
@@ -202,6 +230,7 @@ func (g *AntiMatchGame) sendInputPhase() {
 
 // sendRoundResultPhase broadcasts round scores. No sync delay — results display starts immediately.
 func (g *AntiMatchGame) sendRoundResultPhase(results map[uuid.UUID]AntiMatchPlayerResult, winner *uuid.UUID) {
+	logging.Game.Info("round result", "round", g.roundNumber+1, "target", g.target.Word, "winner", winner, "results", results)
 	g.Broadcast(events.AntiMatchRoundResultEvent, AntiMatchRoundResultPayload{
 		GamePhasePayload: GamePhasePayload{
 			StartTime: g.startTime.UnixMilli(),
@@ -244,15 +273,32 @@ func (g *AntiMatchGame) advancePhase() {
 			if !isDuplicate {
 				wordEntry, exists := g.dict.Lookup(word)
 				if !exists {
+					// Word validated at submit time but not resolvable here
+					// (e.g. divergent double lemma resolution). Score 0 rather
+					// than dropping the player from results entirely.
+					g.TotalScores[id] += 0
+					results[id] = AntiMatchPlayerResult{
+						Word:        word,
+						Score:       0,
+						IsDuplicate: false,
+						TotalScore:  g.TotalScores[id],
+					}
 					continue
 				}
 				wordVec := wordEntry.WordVector
 				// CosineDistance returns [0, 2]. 0 is identical, 2 is opposite.
 				dist := util.CosineDistance(targetVec, wordVec)
 
-				// Scale distance to a 0-100 point score.
-				// Example: dist of 0.15 becomes 100 - 15 = 85 points.
-				score = int(math.Max(0, 100.0-(dist*100.0)))
+				// A NaN distance (target/word vector empty or zero-magnitude)
+				// would propagate through math.Max and int() into a garbage
+				// score. Treat it as 0 instead.
+				if math.IsNaN(dist) {
+					score = 0
+				} else {
+					// Scale distance to a 0-100 point score.
+					// Example: dist of 0.15 becomes 100 - 15 = 85 points.
+					score = int(math.Max(0, 100.0-(dist*100.0)))
+				}
 			}
 
 			g.TotalScores[id] += score
@@ -313,6 +359,7 @@ func (g *AntiMatchGame) advancePhase() {
 			TotalScores: g.TotalScores,
 		}
 
+		logging.Game.Info("final result", "total_scores", g.TotalScores)
 		g.Broadcast(events.GameResultEvent, payload)
 		g.Stop()
 	}
@@ -341,14 +388,18 @@ func (g *AntiMatchGame) processInput(input GameInput) {
 		}
 
 		if !exists {
+			logging.Game.Debug("word rejected (not in dictionary)", "id", input.ClientId, "round", g.roundNumber+1, "word", payload.Word)
 			g.Send(&input.ClientId, events.ErrorEvent, map[string]string{"message": "Ordet finns inte i vår ordbok. Försök med ett annat!"})
 			return
 		}
 
 		g.rounds[g.roundNumber].entries[input.ClientId] = word
+		logging.Game.Info("word submitted", "id", input.ClientId, "round", g.roundNumber+1, "word", word,
+			"submitted", len(g.rounds[g.roundNumber].entries), "players", len(g.players))
 		g.Broadcast(events.AntiMatchSubmissionUpdateEvent, AntiMatchSubmissionUpdatePayload{PlayerID: input.ClientId, HasSubmitted: true})
 
 		if len(g.rounds[g.roundNumber].entries) == len(g.players) {
+			logging.Game.Info("all players submitted, advancing", "round", g.roundNumber+1)
 			g.advancePhase()
 		}
 	}

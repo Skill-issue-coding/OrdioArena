@@ -1,8 +1,8 @@
 package session
 
 import (
-	"log"
 	"server/events"
+	"server/logging"
 	"server/util"
 	"server/words"
 	"time"
@@ -52,8 +52,8 @@ func (hub *GameHub) Run() {
 			hub.LobbiesMutex.RLock()
 			openRooms, inRooms := len(hub.Lobbies), hub.totalPlayers()
 			hub.LobbiesMutex.RUnlock()
-			log.Printf("[Hub] Client connected (id=%s). Connected: %d | Rooms open: %d | Players in rooms: %d",
-				client.UserId, len(hub.Clients), openRooms, inRooms)
+			logging.Hub.Info("client connected",
+				"id", client.UserId, "connected", len(hub.Clients), "rooms_open", openRooms, "players_in_rooms", inRooms)
 
 		case client := <-hub.Unregister:
 			if client.Lobby != nil {
@@ -71,8 +71,8 @@ func (hub *GameHub) Run() {
 				hub.LobbiesMutex.RLock()
 				openRooms, inRooms := len(hub.Lobbies), hub.totalPlayers()
 				hub.LobbiesMutex.RUnlock()
-				log.Printf("[Hub] Client disconnected (id=%s). Connected: %d | Rooms open: %d | Players in rooms: %d",
-					client.UserId, len(hub.Clients), openRooms, inRooms)
+				logging.Hub.Info("client disconnected",
+					"id", client.UserId, "connected", len(hub.Clients), "rooms_open", openRooms, "players_in_rooms", inRooms)
 			}
 
 		case message := <-hub.Broadcast:
@@ -90,8 +90,8 @@ func (hub *GameHub) Run() {
 			hub.LobbiesMutex.RLock()
 			openRooms, inRooms := len(hub.Lobbies), hub.totalPlayers()
 			hub.LobbiesMutex.RUnlock()
-			log.Printf("[Hub] Status — Open rooms: %d | Players in rooms: %d | Connected clients: %d",
-				openRooms, inRooms, len(hub.Clients))
+			logging.Hub.Info("status",
+				"rooms_open", openRooms, "players_in_rooms", inRooms, "connected_clients", len(hub.Clients))
 		}
 	}
 }
@@ -121,7 +121,7 @@ func (hub *GameHub) CreateUniqueRoom() string {
 			newRoom := NewLobby(code)
 			hub.Lobbies[code] = newRoom
 			go newRoom.Run()
-			log.Printf("[Hub] Room created (code=%s). Open rooms: %d", code, len(hub.Lobbies))
+			logging.Hub.Info("room created", "code", code, "rooms_open", len(hub.Lobbies))
 			break
 		}
 	}
@@ -143,6 +143,6 @@ func (hub *GameHub) DeleteRoom(code string) {
 	hub.LobbiesMutex.Lock()
 	defer hub.LobbiesMutex.Unlock()
 	delete(hub.Lobbies, code)
-	log.Printf("[Hub] Room deleted (code=%s). Open rooms: %d | Players in rooms: %d",
-		code, len(hub.Lobbies), hub.totalPlayers())
+	logging.Hub.Info("room deleted",
+		"code", code, "rooms_open", len(hub.Lobbies), "players_in_rooms", hub.totalPlayers())
 }

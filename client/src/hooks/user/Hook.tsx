@@ -19,6 +19,7 @@ import axios from "axios"
 import { ToastError, ToastSucess } from "@/lib/ToastFunctions"
 import { tryCatch } from "@/lib/try-catch"
 import { useWebsocketContext } from "@/hooks/websocket/Hook"
+import { setLogUserId } from "@/lib/logger"
 import type { LocalStorageProfile, User } from "@/hooks/user/types"
 import type { WSReceivedPayloadMap } from "@/hooks/websocket/types"
 
@@ -118,6 +119,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const unsubscribe = subscribe("connected_to_hub", (payload) => {
       const serverUser = payload.user as User
+      setLogUserId(serverUser.user_id)
       const profile = GetLocalStorageProfile()
 
       if (profile) {

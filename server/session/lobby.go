@@ -1,9 +1,9 @@
 package session
 
 import (
-	"log"
 	"server/events"
 	"server/game"
+	"server/logging"
 	"server/util"
 
 	"github.com/google/uuid"
@@ -99,7 +99,8 @@ func (lobby *GameLobby) Run() {
 			}
 
 			client.SendEvent(events.JoinedLobbyEvent, nil)
-			log.Printf("[Room %s] Player '%s' joined. Players in room: %d", lobby.ID, client.Username(), len(lobby.Clients))
+			logging.Lobby.Info("player joined",
+				"room", lobby.ID, "user", client.Username(), "id", client.UserId, "players", len(lobby.Clients), "host", lobby.Host == client.UserId)
 
 		case client := <-lobby.Unregister:
 			if _, exists := lobby.Clients[client]; !exists {
@@ -113,13 +114,14 @@ func (lobby *GameLobby) Run() {
 				lobby.CurrentGame.PlayerLeft(client.UserId)
 			}
 
-			log.Printf("[Room %s] Player '%s' left. Players remaining: %d", lobby.ID, client.Username(), len(lobby.Clients))
+			logging.Lobby.Info("player left",
+				"room", lobby.ID, "user", client.Username(), "id", client.UserId, "players", len(lobby.Clients))
 
 			client.SendEvent(events.LeftLobbyEvent, nil)
 
 			// If the lobby is now empty, shut it down.
 			if len(lobby.Clients) == 0 {
-				log.Printf("[Room %s] Room is empty, closing.", lobby.ID)
+				logging.Lobby.Info("room empty, closing", "room", lobby.ID)
 				if lobby.CurrentGame != nil {
 					lobby.CurrentGame.Stop()
 				}
@@ -133,6 +135,7 @@ func (lobby *GameLobby) Run() {
 			if lobby.Host == client.UserId {
 				for remaining := range lobby.Clients {
 					lobby.Host = remaining.UserId
+					logging.Lobby.Info("host promoted", "room", lobby.ID, "new_host", remaining.UserId, "user", remaining.Username())
 					break
 				}
 			}
@@ -140,20 +143,24 @@ func (lobby *GameLobby) Run() {
 			lobby.SyncStateToAllClients()
 
 		case client := <-lobby.SyncRequest:
+			logging.Lobby.Debug("sync requested", "room", lobby.ID, "id", client.UserId)
 			lobby.SyncStateToClient(client)
 
 		case <-lobby.ProfileUpdateRequests:
 			lobby.SyncStateToAllClients()
 
 		case mode := <-lobby.ModeUpdateRequests:
+			logging.Lobby.Info("mode changed", "room", lobby.ID, "mode", string(mode))
 			lobby.SetMode(mode)
 			lobby.SyncStateToAllClients()
 
 		case update := <-lobby.SettingUpdateRequests:
+			logging.Lobby.Info("setting changed", "room", lobby.ID, "key", update.Key, "value", update.Value)
 			lobby.ApplySetting(update.Key, update.Value)
 			lobby.SyncStateToAllClients()
 
 		case message := <-lobby.ChatMessages:
+			logging.Lobby.Debug("chat", "room", lobby.ID, "user", message.Sender.Username, "message", message.Message)
 			for client := range lobby.Clients {
 				client.SendEvent(events.SendChatMessageEvent, message)
 			}
@@ -203,9 +210,13 @@ func (lobby *GameLobby) Run() {
 			for c := range lobby.Clients {
 				c.SendEvent(events.GameStartedEvent, nil)
 			}
+			logging.Lobby.Info("game started", "room", lobby.ID, "mode", string(lobby.Mode), "players", len(players))
+			logging.Game.Info("game started", "room", lobby.ID, "mode", string(lobby.Mode), "players", players)
 			go lobby.CurrentGame.Run()
 
 		case input := <-lobby.GameInputs:
+			logging.Game.Debug("input received",
+				"room", lobby.ID, "id", input.ClientId, "event", string(input.Event.Type), "payload", string(input.Event.Payload))
 			if lobby.CurrentGame != nil {
 				lobby.CurrentGame.HandleInput(input)
 			}
@@ -249,6 +260,8 @@ func (lobby *GameLobby) Run() {
 			}
 			lobby.CurrentGame = nil
 			lobby.Phase = LobbyPhase
+			logging.Game.Info("game ended", "room", lobby.ID)
+			logging.Lobby.Info("game ended, back to lobby", "room", lobby.ID)
 		}
 	}
 }

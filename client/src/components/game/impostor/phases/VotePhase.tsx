@@ -9,6 +9,7 @@ import { useUserContext } from "@/hooks/user/Hook"
 import { useLobbyContext } from "@/hooks/lobby/Hook"
 import { useWebsocketContext } from "@/hooks/websocket/Hook"
 import { useImpostorGame } from "@/hooks/game/Hook"
+import { log } from "@/lib/logger"
 
 const AVATAR_CAP = 5
 
@@ -87,7 +88,11 @@ export function VotePhase() {
   const isCurrentUserActive = activePlayers[myId] ?? false
 
   const handleVote = (target: string | null) => {
-    if (target === myVote || !isCurrentUserActive) return
+    if (target === myVote || !isCurrentUserActive) {
+      log.game.debug("vote ignored", { sameAsCurrent: target === myVote, active: isCurrentUserActive })
+      return
+    }
+    log.game.info("impostor vote", { round: game.current_round, target: target ?? "skip" })
     sendEvent("game_submit_vote", { target })
     setMyVote(target)
   }

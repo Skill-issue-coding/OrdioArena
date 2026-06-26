@@ -4,12 +4,12 @@ import { AnimatePresence } from "motion/react"
 import { GetReadyScreen } from "@/components/game/GetReadyScreen"
 import { useImpostorGame } from "@/hooks/game/Hook"
 import { usePhaseCountdown, usePhaseReady } from "@/hooks/game/timers/Timers"
-import { CountDownBar } from "@/components/game/CountDownBar"
 import { DiscussionPhase } from "./phases/DiscussionPhase"
 import { InputPhase } from "./phases/InputPhase"
 import { IntermediatePhase } from "./phases/IntermediatePhase"
 import { RevealPhase } from "./phases/RevealPhase"
 import { VotePhase } from "./phases/VotePhase"
+import { CountDownBar } from "../CountDownBar"
 
 export const MainImpostorView = () => {
   const game = useImpostorGame()

@@ -7,6 +7,7 @@ import { useLobbyContext } from "../lobby/Hook"
 import { useWebsocketContext } from "../websocket/Hook"
 import { useNavigate } from "@tanstack/react-router"
 import { toTimers } from "./timers/Timers"
+import { log } from "@/lib/logger"
 
 // Wire payload shape for impostor result (differs from legacy ImpostorGameResult type)
 export type ImpostorGameResultPayload = {
@@ -68,6 +69,7 @@ export function GameContextProvider({ children }: { children: ReactNode }) {
     if (mode === "impostor") {
       unsubs.push(
         subscribe("impostor_game_started", (p) => {
+          log.game.info("impostor game started", { round: p.current_round, phase: p.phase })
           setGameState({
             mode: "impostor",
             word: p.word,
@@ -161,6 +163,7 @@ export function GameContextProvider({ children }: { children: ReactNode }) {
     if (mode === "anti_match") {
       unsubs.push(
         subscribe("antimatch_input_phase", (p) => {
+          log.game.info("antimatch input phase", { round: p.current_round, totalRounds: p.total_rounds, target: p.target_word })
           setGameState((prev) => {
             if (prev.mode !== "anti_match") return prev
             const roundIdx = p.current_round - 1 // server sends 1-indexed
@@ -193,6 +196,7 @@ export function GameContextProvider({ children }: { children: ReactNode }) {
 
       unsubs.push(
         subscribe("antimatch_round_result", (p) => {
+          log.game.info("antimatch round result", { round: p.current_round, winner: p.winner })
           setGameState((prev) => {
             if (prev.mode !== "anti_match") return prev
             const roundIdx = p.current_round - 1
@@ -211,6 +215,7 @@ export function GameContextProvider({ children }: { children: ReactNode }) {
 
     unsubs.push(
       subscribe("game_result", (p) => {
+        log.game.info("game result received", { mode })
         setGameResult(p as unknown as ActiveGame["result"])
         navigate({ to: `/lobby/${code}/game/result` })
       })
@@ -218,7 +223,9 @@ export function GameContextProvider({ children }: { children: ReactNode }) {
 
     unsubs.push(
       subscribe("game_started", () => {
+        log.game.info("game started", { mode })
         setGameResult(null)
+        setGameState(DefaultEmptyGame(mode ?? "impostor"))
         if (mode !== "impostor") navigate({ to: `/lobby/${code}/game` })
       })
     )

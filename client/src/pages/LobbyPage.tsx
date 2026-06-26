@@ -10,6 +10,7 @@ import { GameModeSelector, GameSettings } from "@/components/lobby/GameSettings"
 import { GameGuideSelector } from "@/components/guide/GameGuideSelector"
 
 import { ToastError } from "@/lib/ToastFunctions"
+import { log } from "@/lib/logger"
 import { snapIn } from "@/lib/animation-utils"
 import { BASE_GAME_MODES } from "@/lib/game/config"
 import { useUserContext } from "@/hooks/user/Hook"
@@ -57,6 +58,7 @@ export function LobbyView({ code }: { code: string }) {
 
     if (connectionStatus === "connected" && user && !host && !hasAttemptedJoin) {
       setHasAttemptedJoin(true)
+      log.lobby.info("auto-join from URL", { code })
       sendEvent("join_lobby", { lobby_code: code })
     }
   }, [connectionStatus, user, host, code, hasAttemptedJoin, sendEvent])
@@ -84,15 +86,20 @@ export function LobbyView({ code }: { code: string }) {
 
   const hostUser = users && host ? users[host] : null
   const hostName = hostUser?.username
-  const handleLeave = () => sendEvent("leave_lobby", null)
+  const handleLeave = () => {
+    log.lobby.info("leave lobby clicked", { code })
+    sendEvent("leave_lobby", null)
+  }
 
   const isHost = host === user.user_id
 
   const handleStartGame = () => {
     if (!isHost) {
+      log.lobby.warn("non-host tried to start game")
       ToastError("Endast hosten kan starta spelet.")
       return
     }
+    log.lobby.info("host started game", { code, mode, players: Object.keys(users ?? {}).length })
     sendEvent("start_game", null)
   }
 

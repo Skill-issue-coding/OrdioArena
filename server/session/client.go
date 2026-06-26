@@ -1,10 +1,9 @@
 package session
 
 import (
-	"fmt"
-	"log"
 	"server/events"
 	"server/game"
+	"server/logging"
 	"server/util"
 	"strings"
 	"time"
@@ -88,7 +87,7 @@ func (c *Client) ReadPump() {
 	}()
 
 	if err := c.Conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
-		fmt.Println(err)
+		logging.Hub.Error("set read deadline failed", "id", c.UserId, "err", err)
 		return
 	}
 
@@ -103,7 +102,7 @@ func (c *Client) ReadPump() {
 		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error: %v", err)
+				logging.Hub.Error("unexpected socket close", "id", c.UserId, "err", err)
 			}
 			break
 		}
@@ -119,7 +118,7 @@ func (c *Client) ReadPump() {
 		if messageCount > maxMessagesPerSecond {
 			messageWarnings++
 			messageCount = 0
-			log.Printf("Warning: Client %s sent packages too quickly!", c.UserId)
+			logging.Hub.Warn("rate limit exceeded", "id", c.UserId, "warnings", messageWarnings)
 			if messageWarnings >= maxMessageWarnings {
 				break
 			}
@@ -128,7 +127,7 @@ func (c *Client) ReadPump() {
 
 		event, err := events.ParseEvent(message)
 		if err != nil {
-			log.Printf("Error reading JSON: %v", err)
+			logging.Hub.Error("malformed event JSON", "id", c.UserId, "err", err)
 			continue
 		}
 
@@ -148,7 +147,7 @@ func (c *Client) ReadPump() {
 			if err != nil {
 				c.SendError("Serverfel vid inläsningen av lobby koden")
 				c.SendEvent(events.JoinLobbyErrorEvent, nil)
-				log.Printf("Error decoding join_game payload: %v", err)
+				logging.Lobby.Error("decode join_lobby payload failed", "id", c.UserId, "err", err)
 				continue
 			}
 
@@ -180,7 +179,7 @@ func (c *Client) ReadPump() {
 			payload, err := events.DecodePayload[UpdateUserPayload](event)
 			if err != nil {
 				c.SendError("Serverfel vid inläsningen av uppdateringarna")
-				log.Printf("Error decoding update_user payload: %v", err)
+				logging.Lobby.Error("decode update_user payload failed", "id", c.UserId, "err", err)
 				continue
 			}
 
@@ -202,7 +201,7 @@ func (c *Client) ReadPump() {
 			payload, err := events.DecodePayload[ChatMessageRequestPayload](event)
 			if err != nil {
 				c.SendError("Serverfel vid skickandet av meddelandet")
-				log.Printf("Error decoding send_chatmessage payload: %v", err)
+				logging.Lobby.Error("decode chat payload failed", "id", c.UserId, "err", err)
 				continue
 			}
 			if c.Lobby == nil {
@@ -232,7 +231,7 @@ func (c *Client) ReadPump() {
 			payload, err := events.DecodePayload[ChangeModePayload](event)
 			if err != nil {
 				c.SendError("Serverfel vid inläsningen av spelläge")
-				log.Printf("Error decoding change_mode payload: %v", err)
+				logging.Lobby.Error("decode change_mode payload failed", "id", c.UserId, "err", err)
 				continue
 			}
 
@@ -246,7 +245,7 @@ func (c *Client) ReadPump() {
 			payload, err := events.DecodePayload[UpdateSettingPayload](event)
 			if err != nil {
 				c.SendError("Serverfel vid uppdatering av inställningarna")
-				log.Printf("Error decoding update_setting payload: %v", err)
+				logging.Lobby.Error("decode update_setting payload failed", "id", c.UserId, "err", err)
 				continue
 			}
 			c.Lobby.SettingUpdateRequests <- payload
@@ -281,7 +280,7 @@ func (c *Client) ReadPump() {
 			select {
 			case c.Lobby.GameInputs <- game.GameInput{ClientId: c.UserId, Event: event}:
 			default:
-				log.Printf("[%s] GameInputs full, dropping input from %s", c.Lobby.ID, c.UserId)
+				logging.Game.Warn("GameInputs full, dropping input", "room", c.Lobby.ID, "id", c.UserId, "event", string(event.Type))
 			}
 
 		case events.GameSubmitVoteRequestEvent:
@@ -292,11 +291,11 @@ func (c *Client) ReadPump() {
 			select {
 			case c.Lobby.GameInputs <- game.GameInput{ClientId: c.UserId, Event: event}:
 			default:
-				log.Printf("[%s] GameInputs full, dropping input from %s", c.Lobby.ID, c.UserId)
+				logging.Game.Warn("GameInputs full, dropping input", "room", c.Lobby.ID, "id", c.UserId, "event", string(event.Type))
 			}
 
 		default:
-			log.Printf("Unknown event type %s", event.Type)
+			logging.Hub.Warn("unknown event type", "id", c.UserId, "type", string(event.Type))
 			c.SendError("Okänd event-typ")
 		}
 	}
@@ -317,18 +316,19 @@ func (c *Client) pongHandler(_ string) error {
 func (c *Client) SendEvent(eventType events.EventType, payload any) {
 	defer func() {
 		if r := recover(); r != nil {
+			logging.Hub.Error("recovered panic in SendEvent", "id", c.UserId, "event", string(eventType), "panic", r)
 		}
 	}()
 
 	b, err := events.PrepareEvent(eventType, payload)
 	if err != nil {
-		log.Printf("error preparing event: %v", err)
+		logging.Hub.Error("prepare event failed", "id", c.UserId, "event", string(eventType), "err", err)
 		return
 	}
 	select {
 	case c.Send <- b:
 	default:
-		log.Printf("[client %s] Send buffer full, dropping %s", c.UserId, eventType)
+		logging.Hub.Warn("send buffer full, dropping event", "id", c.UserId, "event", string(eventType))
 	}
 }
 

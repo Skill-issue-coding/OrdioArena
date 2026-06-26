@@ -11,6 +11,7 @@ import { useLobbyContext } from "@/hooks/lobby/Hook"
 import { useUserContext } from "@/hooks/user/Hook"
 import { useWebsocketContext } from "@/hooks/websocket/Hook"
 import { ToastError } from "@/lib/ToastFunctions"
+import { log } from "@/lib/logger"
 
 export function InputPhase() {
   const [inputValue, setInputValue] = useState("")
@@ -29,12 +30,18 @@ export function InputPhase() {
   const totalRounds = game.total_rounds
 
   const sendWordSubmission = () => {
-    if (hasSubmitted) return
+    if (hasSubmitted) {
+      log.game.debug("antimatch submit ignored, already submitted", { round: currentRound })
+      return
+    }
     if (isStringEmptyOrOnlySpaces(inputValue) || inputValue.length > 128) {
+      log.game.warn("antimatch submit rejected client-side", { round: currentRound, length: inputValue.length })
       ToastError("Skriv in ett ord")
       return
     }
-    sendEvent("game_submit_word", { word: inputValue.trim().toLowerCase() })
+    const word = inputValue.trim().toLowerCase()
+    log.game.info("antimatch word submit", { round: currentRound, target: targetWord, word })
+    sendEvent("game_submit_word", { word })
   }
 
   return (

@@ -8,6 +8,7 @@ import { popIn } from "@/lib/animation-utils"
 import { useEffect, useRef, useState } from "react"
 import { useWebsocketContext } from "@/hooks/websocket/Hook"
 import { LogoIcon } from "@/components/LogoIcon"
+import { log } from "@/lib/logger"
 
 const formatCode = (val: string) => {
   const clean = val.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8)
@@ -33,8 +34,14 @@ export function HomePage() {
     }
   }, [navigate, subscribe])
 
-  const handleCreateLobby = () => sendEvent("create_lobby", null)
-  const handleJoinLobby = () => sendEvent("join_lobby", { lobby_code: roomCode })
+  const handleCreateLobby = () => {
+    log.lobby.info("create lobby clicked")
+    sendEvent("create_lobby", null)
+  }
+  const handleJoinLobby = () => {
+    log.lobby.info("join lobby clicked", { code: roomCode })
+    sendEvent("join_lobby", { lobby_code: roomCode })
+  }
 
   return (
     <div className="flex h-screen w-screen flex-col items-center justify-center overflow-hidden p-6">
