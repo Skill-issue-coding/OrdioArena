@@ -41,7 +41,7 @@ export function GameModeSelector() {
                 disabled || !isValidMode ? "pointer-events-none cursor-not-allowed opacity-50" : "cursor-pointer opacity-80"
               )}
             >
-              <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-2xl", `bg-game-${m.color}`)}>{m.icon}</div>
+              <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", `bg-game-${m.color}`)}><m.icon className="h-5 w-5 text-white" /></div>
               <div className="min-w-0 flex-1">
                 <div className={cn("truncate font-display text-sm font-bold", active ? m.textClass : "text-foreground")}>{m.title}</div>
                 <div className="truncate text-xs text-muted-foreground">{m.players}</div>
@@ -70,6 +70,7 @@ export function GameSettings() {
 
   const currentMode = (mode as GameMode) || "impostor"
   const settingsConfig = MODE_SETTINGS[currentMode]
+  const modeColor = getMode(currentMode).color
 
   const playerCount = Object.keys(users ?? {}).length
   const maxImpostors = Math.max(1, Math.floor(playerCount / 3))
@@ -123,7 +124,10 @@ export function GameSettings() {
   }
 
   return (
-    <div className={cn("grid w-full grid-cols-1 gap-8 md:grid-cols-2", disabled && "opacity-50")}>
+    <div
+      className={cn("grid w-full grid-cols-1 gap-8 md:grid-cols-2", disabled && "opacity-50")}
+      style={{ "--primary": `var(--game-${modeColor})`, "--primary-foreground": "oklch(1 0 0)", "--ring": `var(--game-${modeColor})` } as React.CSSProperties}
+    >
       {settingsConfig.map((setting) => {
         const currentValue = localvalues[setting.key] ?? setting.default
         return (

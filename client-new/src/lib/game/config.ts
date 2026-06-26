@@ -1,6 +1,8 @@
+import { Brain, Eye, Shuffle, Swords } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import type { GameMode } from "@/hooks/game/types"
 
-export type GameModeColor = "green" | "pink" | "blue" | "yellow" | "red"
+export type GameModeColor = "green" | "pink" | "blue" | "yellow" | "red" | "purple" | "orange"
 
 export type SettingType = "choice" | "slider" | "boolean"
 
@@ -8,7 +10,7 @@ export type GameModeConfig = {
   id: GameMode
   title: string
   description: string
-  icon: string
+  icon: LucideIcon
   players: string
   min_players: number
   color: GameModeColor
@@ -31,17 +33,17 @@ export const BASE_GAME_MODES: GameModeConfig[] = [
     id: "impostor",
     title: "Hitta Impostern",
     description: "En spelare får ett unikt ord. Försök att tillsammans hitta impostern innan det är försent!",
-    icon: "🕵️",
+    icon: Eye,
     players: "3-12 spelare",
     min_players: 3,
-    color: "red",
-    textClass: "text-game-red",
+    color: "purple",
+    textClass: "text-game-purple",
   },
   {
     id: "contexto_battle",
     title: "Kontext Strid",
     description: "Tävla om att hitta det dålda ordet. Semantiska likheter leder dig närmare och närmare det rätta ordet!",
-    icon: "🧠",
+    icon: Brain,
     players: "2-12 spelare",
     min_players: 2,
     color: "blue",
@@ -51,7 +53,7 @@ export const BASE_GAME_MODES: GameModeConfig[] = [
     id: "synonym_duel",
     title: "Synonym Duell",
     description: "Ange den bästa synonymen varje runda. Den som svarar med den sämsta åker ut!",
-    icon: "⚔️",
+    icon: Swords,
     players: "3-12 spelare",
     min_players: 3,
     color: "green",
@@ -61,11 +63,11 @@ export const BASE_GAME_MODES: GameModeConfig[] = [
     id: "anti_match",
     title: "Anti-matchning",
     description: "Tänk anorlunda! Skriv en synonym men var försiktig så det inte matchar någon annans, då får båda noll poäng!",
-    icon: "🎯",
+    icon: Shuffle,
     players: "3-12 spelare",
     min_players: 3,
-    color: "yellow",
-    textClass: "text-game-yellow",
+    color: "orange",
+    textClass: "text-game-orange",
   },
 ]
 

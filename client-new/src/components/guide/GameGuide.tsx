@@ -112,7 +112,7 @@ export function GameGuide({ guide, onBack, onComplete }: GameGuideProps) {
           Föregående
         </Button>
         <span className="hidden font-mono text-xs text-muted-foreground sm:block">← → för att navigera</span>
-        <Button onClick={next} className="gap-2 font-display">
+        <Button onClick={next} className="gap-2 font-display" style={{ backgroundColor: accentColor }}>
           {isLast ? "Klar" : "Nästa"}
           <ChevronRight className="h-4 w-4" />
         </Button>

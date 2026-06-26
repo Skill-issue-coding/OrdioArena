@@ -10,11 +10,11 @@ const StepIntro = () => (
     </motion.div>
 
     <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="max-w-sm text-center font-display text-base text-muted-foreground">
-      Alla spelare får <span className="font-bold text-game-orange">samma ord</span>. Skriv in en synonym — men se till att <span className="font-bold text-foreground">inte skriva</span> samma sak som någon annan.
+      Alla spelare får <span className="font-bold text-game-orange">samma ord</span>. Skriv in en synonym, men se till att <span className="font-bold text-foreground">inte skriva</span> samma sak som någon annan.
     </motion.p>
 
     <div className="flex w-full max-w-xs flex-col gap-2">
-      {["Alla ser samma ord", "Skriv en synonym — var nära men unik", "Dubbletter ger 0 poäng"].map((text, i) => (
+      {["Alla ser samma ord", "Skriv en synonym, var nära men unik", "Dubbletter ger 0 poäng"].map((text, i) => (
         <motion.div key={text} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 + i * 0.15 }} className="flex items-center gap-3 rounded-xl bg-muted/60 px-4 py-2.5">
           <span className="font-display text-sm font-bold text-game-orange">{i + 1}</span>
           <span className="font-display text-sm text-foreground">{text}</span>
@@ -99,7 +99,7 @@ const StepWordAndInput = ({ onNext }: GuideStepProps) => {
       </AnimatePresence>
 
       <motion.p initial={{ opacity: 0 }} animate={{ opacity: wordRevealed ? 1 : 0 }} transition={{ delay: 0.4 }} className="text-center font-display text-sm text-muted-foreground">
-        Skriv en synonym till <span className="font-bold text-game-orange">Bil</span> — men var <span className="font-bold text-foreground">unik</span>. Skriver två spelare samma ord ger båda 0 poäng.
+        Skriv en synonym till <span className="font-bold text-game-orange">Bil</span>, men var <span className="font-bold text-foreground">unik</span>. Skriver två spelare samma ord ger båda 0 poäng.
       </motion.p>
     </div>
   )
@@ -123,26 +123,20 @@ const StepResult = () => {
   return (
     <div className="flex w-full flex-col items-center gap-4">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-        <div className="font-display text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1">Rundaresultat</div>
+        <div className="mb-1 font-display text-xs font-semibold tracking-widest text-muted-foreground uppercase">Rundaresultat</div>
         <div className="font-display text-2xl font-extrabold text-foreground">"Bil"</div>
       </motion.div>
 
-      <div className="w-full max-w-sm flex flex-col gap-2">
+      <div className="flex w-full max-w-sm flex-col gap-2">
         {RESULTS.map((r, i) => (
           <motion.div
             key={r.name}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.12, type: "spring", stiffness: 300, damping: 24 }}
-            className={`flex items-center gap-3 rounded-2xl border-2 px-4 py-3 transition-all duration-500 ${
-              r.isDuplicate && showFails
-                ? "border-game-red bg-game-red/5"
-                : r.isWinner
-                  ? "border-game-green bg-game-green/10"
-                  : "border-border bg-card"
-            }`}
+            className={`flex items-center gap-3 rounded-2xl border-2 px-4 py-3 transition-all duration-500 ${r.isDuplicate && showFails ? "border-game-red bg-game-red/5" : r.isWinner ? "border-game-green bg-game-green/10" : "border-border bg-card"}`}
           >
-            <div className="w-5 shrink-0 text-center font-display font-extrabold text-sm text-muted-foreground">{i + 1}</div>
+            <div className="w-5 shrink-0 text-center font-display text-sm font-extrabold text-muted-foreground">{i + 1}</div>
             <div
               className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-display text-sm font-bold ${
                 r.isWinner ? "bg-game-green/20 text-game-green" : r.isDuplicate ? "bg-game-red/15 text-game-red" : "bg-muted text-muted-foreground"
@@ -150,36 +144,26 @@ const StepResult = () => {
             >
               {r.initial}
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="relative inline-block">
                 <div className="font-display text-xs text-muted-foreground">{r.name}</div>
                 {r.isDuplicate && showFails && (
-                  <motion.div
-                    className="absolute top-1/2 left-[-5%] right-[-5%] h-0.5 bg-game-red origin-left rounded-full"
-                    initial={{ scaleX: 0 }}
-                    animate={{ scaleX: 1 }}
-                    transition={{ duration: 0.3, ease: "easeInOut" }}
-                  />
+                  <motion.div className="absolute top-1/2 right-[-5%] left-[-5%] h-0.5 origin-left rounded-full bg-game-red" initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.3, ease: "easeInOut" }} />
                 )}
               </div>
-              <div className="font-display font-extrabold text-lg truncate flex items-center gap-2">
-                "{r.word}"
-                {r.isDuplicate && <span className="text-[10px] font-display font-extrabold text-game-red uppercase tracking-wider">· Dubblett</span>}
+              <div className="flex items-center gap-2 truncate font-display text-lg font-extrabold">
+                "{r.word}"{r.isDuplicate && <span className="font-display text-[10px] font-extrabold tracking-wider text-game-red uppercase">· Dubblett</span>}
               </div>
             </div>
-            <div
-              className={`font-display font-extrabold text-lg w-10 text-right shrink-0 ${
-                r.isDuplicate && showFails ? "text-game-red" : r.isWinner ? "text-game-green" : "text-muted-foreground"
-              }`}
-            >
-              {r.isDuplicate && showFails ? <X className="h-5 w-5 stroke-[3px] ml-auto" /> : `+${r.points}p`}
+            <div className={`w-10 shrink-0 text-right font-display text-lg font-extrabold ${r.isDuplicate && showFails ? "text-game-red" : r.isWinner ? "text-game-green" : "text-muted-foreground"}`}>
+              {r.isDuplicate && showFails ? <X className="ml-auto h-5 w-5 stroke-[3px]" /> : `+${r.points}p`}
             </div>
           </motion.div>
         ))}
       </div>
 
       <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }} className="text-center font-display text-xs text-muted-foreground">
-        <span className="font-semibold text-game-orange">Närmast synonymen</span> vinner rundan — dubbletter ger <span className="font-semibold text-game-red">0 poäng</span>.
+        <span className="font-semibold text-game-orange">Närmast synonymen</span> vinner rundan, dubbletter ger <span className="font-semibold text-game-red">0 poäng</span>.
       </motion.p>
     </div>
   )
@@ -225,7 +209,13 @@ const StepWin = () => (
       {WIN_CONDITIONS.map((c) => {
         const Icon = c.icon
         return (
-          <motion.div key={c.label} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: c.delay, type: "spring", stiffness: 300 }} className={`flex items-center gap-4 rounded-2xl border ${c.border} ${c.bg} px-5 py-4`}>
+          <motion.div
+            key={c.label}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: c.delay, type: "spring", stiffness: 300 }}
+            className={`flex items-center gap-4 rounded-2xl border ${c.border} ${c.bg} px-5 py-4`}
+          >
             <div className={`rounded-xl ${c.bg} shrink-0 p-2`}>
               <Icon className={`h-5 w-5 ${c.color}`} />
             </div>
@@ -239,7 +229,7 @@ const StepWin = () => (
     </div>
 
     <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.85 }} className="text-center font-display text-xs text-muted-foreground">
-      Spelet spelas över flera rundor — den med flest totalpoäng vinner!
+      Spelet spelas över flera rundor, den med flest totalpoäng vinner!
     </motion.p>
   </div>
 )

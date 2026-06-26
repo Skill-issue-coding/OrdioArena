@@ -125,6 +125,7 @@ function ModeExample({ modeId }: { modeId: GameMode }) {
 export function QuickGuide({ children }: QuickGuideProps) {
   const [activeMode, setActiveMode] = useState<GameMode>("impostor")
   const mode = getMode(activeMode)
+  const ActiveModeIcon = mode.icon
   const info = EXTENDED_INFO[activeMode]
 
   return (
@@ -165,6 +166,7 @@ export function QuickGuide({ children }: QuickGuideProps) {
         <div className="flex flex-wrap gap-2.5">
           {BASE_GAME_MODES.map((m) => {
             const isActive = activeMode === m.id
+            const ModeIcon = m.icon
             return (
               <button
                 key={m.id}
@@ -174,7 +176,7 @@ export function QuickGuide({ children }: QuickGuideProps) {
                   isActive ? `bg-game-${m.color} border-game-${m.color} scale-105 text-white shadow-md` : "border-border bg-muted/40 text-muted-foreground hover:border-muted-foreground/40 hover:bg-muted/60"
                 )}
               >
-                <span className="text-lg leading-none">{m.icon}</span>
+                <ModeIcon className="h-4 w-4" />
                 {m.title}
               </button>
             )
@@ -186,7 +188,7 @@ export function QuickGuide({ children }: QuickGuideProps) {
           className="animate-in rounded-2xl border-2 border-border bg-card p-6 shadow-sm duration-300 fade-in slide-in-from-bottom-2"
         >
           <div className="mb-2 flex items-center gap-4">
-            <div className={cn("flex h-16 w-16 items-center justify-center rounded-lg text-3xl shadow-sm", `bg-game-${mode.color}`)}>{mode.icon}</div>
+            <div className={cn("flex h-16 w-16 items-center justify-center rounded-lg shadow-sm", `bg-game-${mode.color}`)}><ActiveModeIcon className="h-7 w-7 text-white" /></div>
             <div>
               <h2 className={cn("font-display text-2xl font-extrabold", mode.textClass)}>{mode.title}</h2>
               <div className="mt-1 font-display text-xs font-bold tracking-wider text-muted-foreground uppercase">{mode.players}</div>
