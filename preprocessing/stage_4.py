@@ -7,11 +7,13 @@ from pathlib import Path
 
 try:
     from shared import (
-        read_korp, 
-        load_kelly, 
-        load_custom_stopwords, 
+        read_korp,
+        load_kelly,
+        load_custom_stopwords,
         ALLOWED_POS,  # e.g., {"NOUN", "VERB", "ADJ", "PROPN"}
-        DEFAULT_KORP_FREQ
+        DEFAULT_KORP_FREQ,
+        DOMAIN_VOCAB_EXPANSIONS,
+        DOMAIN_VOCAB_KORP_MIN,
     )
     HAS_SHARED = True
 except ImportError as e:
@@ -70,6 +72,9 @@ def main():
     # 2. Filter by Baseline Frequency
     # We enforce a strict minimum frequency for general words to ensure they are well-known
     df['Totalt'] = pd.to_numeric(df['Totalt'], errors='coerce').fillna(0)
+    # Keep the full word→freq map BEFORE the strict gate so domain-vocab words
+    # that sit below DEFAULT_KORP_FREQ can still be rescued later (see step 6).
+    full_korp_freq = dict(zip(df['word'].astype(str).str.lower(), df['Totalt']))
     df = df[df['Totalt'] >= DEFAULT_KORP_FREQ]
     print(f" -> Efter frekvenskrav (>= {DEFAULT_KORP_FREQ}): {len(df):,} ord kvar.")
     log.info(f"Stage 4: after freq filter {len(df)}")
@@ -136,7 +141,44 @@ def main():
     # 5. Merge and Finalize
     valid_df = pd.DataFrame(valid_words)
     final_df = pd.merge(df, valid_df, on='word', how='inner')
-    
+
+    # 6. Inject domain-vocabulary expansions (the curated semantic-field words
+    #    players reach for per category, e.g. "konsert", "omsättning", "säsong").
+    #    These bypass the strict DEFAULT_KORP_FREQ gate and use the much lower
+    #    DOMAIN_VOCAB_KORP_MIN floor — but must still be *attested* in Korp at
+    #    that floor (below it the w2v vector is too noisy to score reliably).
+    existing_words = set(final_df['word'].astype(str).str.lower())
+    domain_words = {
+        w.lower()
+        for words in DOMAIN_VOCAB_EXPANSIONS.values()
+        for w in words
+    }
+    to_inject = [
+        w for w in domain_words
+        if w not in existing_words
+        and full_korp_freq.get(w, 0) >= DOMAIN_VOCAB_KORP_MIN
+    ]
+
+    if to_inject:
+        injected_rows = []
+        for doc in nlp.pipe(to_inject, batch_size=256):
+            token = doc[0]
+            word_text = token.text
+            lemma = token.lemma_.lower()
+            injected_rows.append({
+                'word': word_text,
+                'Totalt': full_korp_freq.get(word_text.lower(), 0),
+                'lemma': lemma,
+                'pos': token.pos_,
+                'in_kelly': lemma in kelly_words if kelly_words else False,
+            })
+        inject_df = pd.DataFrame(injected_rows).reindex(columns=final_df.columns)
+        final_df = pd.concat([final_df, inject_df], ignore_index=True)
+        print(f" -> Injicerade {len(injected_rows)} domänord (korp_freq >= {DOMAIN_VOCAB_KORP_MIN}).")
+        log.info(f"Stage 4: injected {len(injected_rows)} domain-vocab words")
+    else:
+        log.info("Stage 4: no domain-vocab words to inject")
+
     # Sort by Korp frequency so the most common words are at the top
     final_df = final_df.sort_values(by='Totalt', ascending=False)
 

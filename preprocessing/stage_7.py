@@ -229,18 +229,40 @@ def build_notability_lookup() -> tuple[dict[str, int], dict[str, float]]:
     return sitelinks_lookup, makt_lookup
 
 
+# Notability is a blend of three signals, weighted so that *Swedish* demand
+# leads. Sitelinks measure global Wikipedia coverage (Sweden-blind: BlackRock
+# has many sitelinks, near-zero Swedish awareness), so they are demoted to a
+# secondary base. sv.wikipedia pageviews directly measure how many Swedes look
+# an entity up — the best available familiarity proxy. Both are heavy-tailed, so
+# they are log-compressed before normalising.
+W_PAGEVIEWS = 0.55   # Swedish demand — the primary familiarity signal
+W_SITELINKS = 0.30   # global notability — de-weighted base / floor
+W_MAKT      = 0.15   # Maktbarometern — Swedish politics/business prominence
+
+
 def compute_notability_score(
     word: str,
     sitelinks_lookup: dict[str, int],
     makt_lookup: dict[str, float],
-    max_sitelinks: int,
+    pageviews_lookup: dict[str, float],
+    max_log_sitelinks: float,
     max_makt: float,
+    max_log_pageviews: float,
 ) -> float:
-    """[0, 1] — average of normalised sitelinks and normalised maktbarometern score."""
+    """[0, 1] — Swedish-familiarity blend (pageviews-led, sitelinks as base)."""
+    import math
     key = word.lower()
-    sl_norm   = sitelinks_lookup.get(key, 0) / max_sitelinks if max_sitelinks > 0 else 0.0
-    makt_norm = makt_lookup.get(key, 0.0)    / max_makt      if max_makt > 0      else 0.0
-    return round((sl_norm + makt_norm) / 2, 4)
+    pv_norm = (
+        math.log1p(pageviews_lookup.get(key, 0.0)) / max_log_pageviews
+        if max_log_pageviews > 0 else 0.0
+    )
+    sl_norm = (
+        math.log1p(sitelinks_lookup.get(key, 0)) / max_log_sitelinks
+        if max_log_sitelinks > 0 else 0.0
+    )
+    makt_norm = makt_lookup.get(key, 0.0) / max_makt if max_makt > 0 else 0.0
+    score = W_PAGEVIEWS * pv_norm + W_SITELINKS * sl_norm + W_MAKT * makt_norm
+    return round(score, 4)
 
 
 def main():
@@ -272,21 +294,25 @@ def main():
 
     targets.sort(key=lambda t: t["word"].lower())
 
-    # Attach notability scores from Wikidata sitelinks + Maktbarometern.
+    # Attach notability scores from sv-pageviews + Wikidata sitelinks + Maktbarometern.
+    import math
     sitelinks_lookup, makt_lookup = build_notability_lookup()
-    max_sitelinks = max(sitelinks_lookup.values(), default=1)
-    max_makt      = max(makt_lookup.values(),      default=1.0)
+    pageviews_lookup = build_pageviews_lookup()
+    has_pageviews    = bool(pageviews_lookup)
+
+    max_log_sitelinks = math.log1p(max(sitelinks_lookup.values(), default=1))
+    max_makt          = max(makt_lookup.values(),      default=1.0)
+    max_log_pageviews = math.log1p(max(pageviews_lookup.values(), default=1.0))
     for t in targets:
         t["notability_score"] = compute_notability_score(
-            t["word"], sitelinks_lookup, makt_lookup, max_sitelinks, max_makt
+            t["word"], sitelinks_lookup, makt_lookup, pageviews_lookup,
+            max_log_sitelinks, max_makt, max_log_pageviews,
         )
     notable = sum(1 for t in targets if t["notability_score"] > 0)
     log.info(f"Stage 7: {notable} targets with notability_score > 0")
 
     # Gate: remove entity targets that are demonstrably obscure.
     # General vocabulary words are never gated — they are common Swedish nouns.
-    pageviews_lookup = build_pageviews_lookup()
-    has_pageviews    = bool(pageviews_lookup)
 
     filtered: list[dict] = []
     skipped_score = 0

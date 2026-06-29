@@ -119,6 +119,19 @@ MIN_POOL_TOKEN_LEN = 3
 MIN_POOL_KORP_FREQ = 20
 DYNAMIC_POOL_MAX = 40
 
+# Slurs / profanity that must never be surfaced to players as impostor words,
+# regardless of how frequent they are in the (casual-register) Korp corpus.
+# These slip past POS / frequency / stopword filters — flashback/familjeliv text
+# makes them common. Exact lowercased-token match. Extend as playtests surface more.
+PROFANITY_BLOCKLIST: set[str] = {
+    "svartskalle", "svartskallar", "blatte", "blattar", "neger", "negern", "negrer",
+    "hora", "horan", "horor", "fitta", "fittan", "fittor", "bitterfitta", "bitterfittan",
+    "kuk", "kuken", "kukar", "knulla", "knullar", "fitt", "cp", "mongo", "mongon",
+    "bög", "bögen", "bögar", "fjolla", "subba", "subban", "slyna", "slynan",
+    "pucko", "idiot", "idioten", "jävla", "jävlar", "helvete", "satan", "fan",
+    "kärring", "kärringen", "våldtäkt", "våldta",
+}
+
 # ── Rank markers written to targets.json ─────────────────────────────────────
 RANK_MARKERS = [10, 50, 100, 500, 1000]
 
@@ -167,6 +180,8 @@ def _build_dynamic_descriptor_pool(
             for raw in df[col].dropna().astype(str):
                 for tok in _tokenize(raw):
                     if len(tok) < MIN_POOL_TOKEN_LEN or tok in POOL_STOPWORDS:
+                        continue
+                    if tok in PROFANITY_BLOCKLIST:
                         continue
                     idx = word_to_idx.get(tok)
                     if idx is None:
@@ -332,6 +347,8 @@ def main() -> None:
                         continue
                     if t_lower in c_lower or c_lower in t_lower:
                         continue
+                    if c_lower in PROFANITY_BLOCKLIST:
+                        continue
                     pool_candidates.append((c_word, float(sim_row[c_idx])))
                 pool_candidates.sort(key=lambda x: x[1], reverse=True)
                 candidates = []
@@ -361,11 +378,16 @@ def main() -> None:
                         continue  # morphological variant of the target
                     if t_lower in c_lower or c_lower in t_lower:
                         continue  # substring overlap
+                    if c_lower in PROFANITY_BLOCKLIST:
+                        continue  # never surface slurs to players
 
-                    if sources is not None:
-                        c_type_c = sources[c_idx]
-                        if c_type_c != t_type and c_type_c != "general" and t_type != "general":
-                            continue
+                    # Only common-vocabulary words make good fallback impostors.
+                    # Other entities (PROPN) here are peer names — for a target like
+                    # "Zlatan" the nearest neighbours are footballer/Balkan names and
+                    # casual-corpus slang, which read as garbage. Restrict to the
+                    # "general" source so culture/general targets get real words.
+                    if sources is not None and sources[c_idx] != "general":
+                        continue
 
                     raw_candidates.append((c_word, korp_freq.get(c_lower, 0)))
 

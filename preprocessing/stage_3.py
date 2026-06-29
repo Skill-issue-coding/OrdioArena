@@ -158,6 +158,62 @@ def fetch_wikidata_labels(qids, session, limiter):
     return labels
 
 PAGEVIEWS_API = "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/sv.wikipedia/all-access/all-agents"
+SV_WIKI_API   = "https://sv.wikipedia.org/w/api.php"
+
+
+def resolve_sv_titles(titles: list, session: requests.Session) -> dict:
+    """Map each raw entity label → its canonical sv.wikipedia article title.
+
+    The pageviews REST API does NOT follow redirects or normalise titles, so a
+    label that differs from the article title (redirect, casing, spacing) returns
+    404 → 0.0 and the entity is falsely treated as obscure. Resolve titles up
+    front via the MediaWiki query API (which reports `normalized` + `redirects`)
+    so pageviews are fetched against the real article title.
+
+    Returns {raw_label: canonical_title}; labels with no sv article map to
+    themselves (the pageviews fetch will then legitimately return 0.0).
+    """
+    clean = [t.strip() for t in titles if isinstance(t, str) and t.strip()]
+    resolved: dict[str, str] = {t: t for t in clean}
+    if not clean:
+        return resolved
+
+    BATCH = 50  # MediaWiki query API title cap per request
+    for start in range(0, len(clean), BATCH):
+        batch = clean[start : start + BATCH]
+        params = {
+            "action":    "query",
+            "format":    "json",
+            "titles":    "|".join(batch),
+            "redirects": 1,
+        }
+        try:
+            time.sleep(0.05)
+            resp = session.get(SV_WIKI_API, params=params, timeout=15)
+            if resp.status_code != 200:
+                continue
+            query = resp.json().get("query", {})
+        except Exception as e:
+            log.warning(f"Title resolution batch failed: {e}")
+            continue
+
+        # Chain raw → normalized → redirect target to reach the canonical title.
+        step: dict[str, str] = {}
+        for entry in query.get("normalized", []):
+            step[entry["from"]] = entry["to"]
+        for entry in query.get("redirects", []):
+            step[entry["from"]] = entry["to"]
+
+        for raw in batch:
+            canonical = raw
+            seen = set()
+            while canonical in step and canonical not in seen:
+                seen.add(canonical)
+                canonical = step[canonical]
+            resolved[raw] = canonical
+
+    return resolved
+
 
 def fetch_sv_pageviews_avg(titles: list, session: requests.Session) -> dict:
     """Return {title: monthly_avg_views} for each title from sv.wikipedia (trailing 12 months).
@@ -215,9 +271,16 @@ def enrich_with_pageviews(output_dir: str, session: requests.Session) -> None:
             continue
 
         titles = df[label_col].dropna().astype(str).tolist()
-        pageviews = fetch_sv_pageviews_avg(titles, session)
+        # Resolve labels → canonical article titles first so redirects/casing
+        # don't cause false 0.0 pageviews (which would wrongly demote the entity).
+        label_to_title = resolve_sv_titles(titles, session)
+        pageviews_by_title = fetch_sv_pageviews_avg(
+            list(dict.fromkeys(label_to_title.values())), session
+        )
         df["sv_pageviews_monthly_avg"] = df[label_col].map(
-            lambda t: pageviews.get(str(t), 0.0)
+            lambda t: pageviews_by_title.get(
+                label_to_title.get(str(t).strip(), str(t).strip()), 0.0
+            )
         )
         df.to_csv(path, index=False)
         found = (df["sv_pageviews_monthly_avg"] > 0).sum()

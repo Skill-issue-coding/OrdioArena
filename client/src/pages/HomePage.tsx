@@ -9,6 +9,8 @@ import { useEffect, useRef, useState } from "react"
 import { useWebsocketContext } from "@/hooks/websocket/Hook"
 import { LogoIcon } from "@/components/LogoIcon"
 import { log } from "@/lib/logger"
+import { BookOpenText } from "lucide-react"
+import { GameGuideSelector } from "@/components/guide/GameGuideSelector"
 
 const formatCode = (val: string) => {
   const clean = val.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8)
@@ -21,6 +23,7 @@ export function HomePage() {
   const navigate = useNavigate()
 
   const [roomCode, setRoomCode] = useState("")
+  const [showGuide, setShowGuide] = useState(false)
   const pendingCodeRef = useRef("")
 
   useEffect(() => {
@@ -89,7 +92,14 @@ export function HomePage() {
             Skapa rum +
           </Button>
         </motion.div>
+        <motion.div {...popIn(0.65)} className="w-full">
+          <Button variant="glass" size="lg" onClick={() => setShowGuide(true)} className="min-h-12 w-full gap-2 font-body">
+            Hur du spelar
+            <BookOpenText />
+          </Button>
+        </motion.div>
       </div>
+      {showGuide && <GameGuideSelector onClose={() => setShowGuide(false)} />}
     </div>
   )
 }

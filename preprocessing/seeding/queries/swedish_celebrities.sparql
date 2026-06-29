@@ -11,14 +11,15 @@ SELECT DISTINCT ?person ?personLabel ?sitelinks WHERE {
 
   ?person wdt:P31 wd:Q5 ;        # instance of: human
           wdt:P27 wd:Q34 ;       # country of citizenship: Sweden
-          wdt:P569 ?birthDate ;  # date of birth
           wikibase:sitelinks ?sitelinks .
 
-  FILTER(
-    ?sitelinks > 3 &&
-    ?birthDate >= "1990-01-01T00:00:00Z"^^xsd:dateTime
-  )
-  
+  # No birthDate gate: the old `>= 1990` cutoff silently excluded the entire
+  # pre-1990 class (Zlatan 1981, Robyn 1979, ABBA…) and dropped humans with no
+  # P569 at all. Obscurity is handled downstream by the stage_7 notability +
+  # sv-pageviews gates. sitelinks > 4 keeps the result set tractable for WDQS
+  # (the sv-article requirement already bounds it to people with a sv.wikipedia page).
+  FILTER( ?sitelinks > 4 )
+
   SERVICE wikibase:label {
     bd:serviceParam wikibase:language "sv,en".
   }

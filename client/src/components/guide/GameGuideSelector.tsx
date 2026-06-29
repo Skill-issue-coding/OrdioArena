@@ -5,7 +5,7 @@ import { ALL_MODES, GUIDE_REGISTRY } from "./registry"
 import { GameGuide } from "./GameGuide"
 import type { GameModeGuide } from "./types"
 import { useUIOverlay } from "@/hooks/ui/Hook"
-import { useLobbyContext } from "@/hooks/lobby/Hook"
+import { useOptionalLobbyContext } from "@/hooks/lobby/Hook"
 
 interface GameGuideSelectorProps {
   onClose: () => void
@@ -14,7 +14,7 @@ interface GameGuideSelectorProps {
 export function GameGuideSelector({ onClose }: GameGuideSelectorProps) {
   const [selected, setSelected] = useState<GameModeGuide | null>(null)
   const { setOverlayActive } = useUIOverlay()
-  const { mode: currentGameMode } = useLobbyContext()
+  const lobby = useOptionalLobbyContext()
 
   useEffect(() => {
     setOverlayActive(true)
@@ -36,7 +36,7 @@ export function GameGuideSelector({ onClose }: GameGuideSelectorProps) {
 
       <div className="grid w-full max-w-2xl grid-cols-2 gap-4">
         {ALL_MODES.map((mode, i) => {
-          const isActiveMode = currentGameMode === mode.mode
+          const isActiveMode = lobby?.mode === mode.mode
           const guide = GUIDE_REGISTRY.find((g) => g.mode === mode.mode)
           const hasGuide = !!guide
           const Icon = mode.icon
