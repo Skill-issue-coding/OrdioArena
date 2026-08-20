@@ -228,7 +228,7 @@ func (g *AntiMatchGame) sendInputPhase() {
 	})
 }
 
-// sendRoundResultPhase broadcasts round scores. No sync delay — results display starts immediately.
+// sendRoundResultPhase broadcasts round scores. No sync delay, results display starts immediately.
 func (g *AntiMatchGame) sendRoundResultPhase(results map[uuid.UUID]AntiMatchPlayerResult, winner *uuid.UUID) {
 	logging.Game.Info("round result", "round", g.roundNumber+1, "target", g.target.Word, "winner", winner, "results", results)
 	g.Broadcast(events.AntiMatchRoundResultEvent, AntiMatchRoundResultPayload{

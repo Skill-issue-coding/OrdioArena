@@ -10,7 +10,7 @@ type SimRanks struct {
 	Rank1000 float64 `json:"1000"`
 }
 
-// Target is one entry from targets.json — a word with its category and
+// Target is one entry from targets.json, a word with its category and
 // precomputed per-target metadata produced by stage 9.
 type Target struct {
 	Word string `json:"word"`

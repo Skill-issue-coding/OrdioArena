@@ -1,5 +1,5 @@
-// Package logging provides three domain-scoped structured loggers — Hub,
-// Lobby, and Game — backed by log/slog.
+// Package logging provides three domain-scoped structured loggers, Hub,
+// Lobby, and Game, backed by log/slog.
 //
 // Behaviour is controlled by the LOG_TO_FILE environment variable:
 //
@@ -50,7 +50,7 @@ var toFile bool
 func ToFile() bool { return toFile }
 
 // Init configures the three domain loggers based on the LOG_TO_FILE env var.
-// It is idempotent — only the first call has an effect.
+// It is idempotent, only the first call has an effect.
 func Init() {
 	initOnce.Do(func() {
 		toFile = parseBool(os.Getenv("LOG_TO_FILE"))
@@ -77,7 +77,7 @@ func Init() {
 		Lobby = fileLogger("lobby.log", "lobby")
 		Game = fileLogger("game.log", "game")
 		Client = fileLogger("client.log", "client")
-		log.Printf("[logging] file mode — writing detailed logs to %s/{hub,lobby,game,client}.log", logDir)
+		log.Printf("[logging] file mode, writing detailed logs to %s/{hub,lobby,game,client}.log", logDir)
 	})
 }
 
@@ -112,7 +112,7 @@ func Close() {
 	openFiles = nil
 }
 
-// Writer returns an io.Writer that fans out to stdout — used to bridge gin's
+// Writer returns an io.Writer that fans out to stdout, used to bridge gin's
 // default logger when desired. Currently stdout-only; kept for future use.
 func Writer() io.Writer { return os.Stdout }
 

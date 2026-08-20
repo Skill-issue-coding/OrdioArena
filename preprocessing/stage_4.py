@@ -145,7 +145,7 @@ def main():
     # 6. Inject domain-vocabulary expansions (the curated semantic-field words
     #    players reach for per category, e.g. "konsert", "omsättning", "säsong").
     #    These bypass the strict DEFAULT_KORP_FREQ gate and use the much lower
-    #    DOMAIN_VOCAB_KORP_MIN floor — but must still be *attested* in Korp at
+    #    DOMAIN_VOCAB_KORP_MIN floor, but must still be *attested* in Korp at
     #    that floor (below it the w2v vector is too noisy to score reliably).
     existing_words = set(final_df['word'].astype(str).str.lower())
     domain_words = {

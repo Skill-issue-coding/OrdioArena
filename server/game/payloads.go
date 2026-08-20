@@ -12,7 +12,7 @@ type GamePhasePayload struct {
 	EndTime   int64 `json:"end_time"`
 }
 
-// Sent on every phase transition — maps 1:1 to BaseGameState
+// Sent on every phase transition, maps 1:1 to BaseGameState
 type GameBaseUpdatePayload struct {
 	GamePhasePayload                    // timers
 	Phase            string             `json:"phase"`

@@ -16,7 +16,7 @@ type EventType string
 // Server → Client event types.
 const (
 	// ConnectedEvent is sent once immediately after a client connects to the hub.
-	// Payload: ConnectedToHubPayload — contains the server-generated user profile.
+	// Payload: ConnectedToHubPayload, contains the server-generated user profile.
 	ConnectedEvent EventType = "connected_to_hub"
 
 	// JoinedLobbyEvent is sent to the joining client after they are registered

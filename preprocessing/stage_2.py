@@ -13,7 +13,7 @@ from seeding import clean_seeding
 # Look for the cleaned seeding files first, fallback to the raw output
 INPUT_DIRS = ["intermediate/seeding_cleaned", "seeding/output_cleaned", "seeding/output"]
 OUTPUT_DIR = "intermediate/stage2_wiki"
-MAX_REQUESTS_PER_MIN = 20           # 1 request per 2 s — well within Wikipedia's limits
+MAX_REQUESTS_PER_MIN = 20           # 1 request per 2 s, well within Wikipedia's limits
 MIN_INTERVAL_SECONDS = 60.0 / MAX_REQUESTS_PER_MIN
 BATCH_SIZE = 20                     # Wikipedia extracts API max titles per request (with exintro)
 
@@ -78,7 +78,7 @@ def _do_batch_request(
     if resp.status_code in {429, 503}:
         wait_seconds = _retry_after_seconds(resp)
         log.warning(f"Rate limited (status {resp.status_code}), sleeping {wait_seconds:.0f}s")
-        print(f"  Rate limited — sleeping {wait_seconds:.0f}s before retry…")
+        print(f"  Rate limited, sleeping {wait_seconds:.0f}s before retry…")
         time.sleep(wait_seconds)
         limiter._last_request_at = 0.0  # fire immediately after sleep, not after another 2 s
         limiter.wait()
@@ -156,7 +156,7 @@ def fetch_wikipedia_summaries(entities):
 
         if batch_num % 5 == 0 or batch_num == n_batches:
             done = min(batch_start + BATCH_SIZE, len(entities))
-            print(f"  batch {batch_num}/{n_batches} — {done}/{len(entities)} entiteter klara")
+            print(f"  batch {batch_num}/{n_batches}, {done}/{len(entities)} entiteter klara")
 
     return summaries
 

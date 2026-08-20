@@ -1,7 +1,7 @@
 """
 Stage 6: Export encoded embeddings to binary format for the Go backend.
 
-Wikipedia2Vec is a symmetric space — a single embedding file suffices.
+Wikipedia2Vec is a symmetric space, a single embedding file suffices.
 dual is always false and vocab_query.bin is never written.
 
 Input:
@@ -99,7 +99,7 @@ def main():
         json.dump(vocab, f, ensure_ascii=False)
     log.info(f"Stage 6: wrote {OUT_VOCAB}")
 
-    # ── Write meta.json (dual always false — Wikipedia2Vec is symmetric) ──────
+    # ── Write meta.json (dual always false, Wikipedia2Vec is symmetric) ──────
     meta = {"n": n, "dims": dims, "dual": False}
     with OUT_META.open("w", encoding="utf-8") as f:
         json.dump(meta, f)
@@ -128,7 +128,7 @@ def main():
     raw = OUT_BIN.read_bytes()
     first_vec = np.frombuffer(raw[:dims * 4], dtype="<f4")
     if not np.allclose(first_vec, embeddings[0], atol=1e-6):
-        print("VARNING: round-trip-kontroll misslyckades — binärfilen kan vara korrupt.")
+        print("VARNING: round-trip-kontroll misslyckades, binärfilen kan vara korrupt.")
         sys.exit(1)
 
     print(f"\nKlar! {n:,} vektorer exporterade till {OUTPUT_DIR}")

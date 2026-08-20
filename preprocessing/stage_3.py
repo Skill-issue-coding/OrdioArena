@@ -22,7 +22,7 @@ INPUT_DIR = "intermediate/stage2_wiki"
 OUTPUT_DIR = "intermediate/stage3_attrs"
 
 # Wikidata shares the same IP-rate-limit pool as Wikipedia.
-# 8 req/min = 7.5 s between requests — conservative but fast enough (50 QIDs/batch).
+# 8 req/min = 7.5 s between requests, conservative but fast enough (50 QIDs/batch).
 MAX_REQUESTS_PER_MIN = 30
 MIN_INTERVAL_SECONDS = 60.0 / MAX_REQUESTS_PER_MIN
 
@@ -219,7 +219,7 @@ def fetch_sv_pageviews_avg(titles: list, session: requests.Session) -> dict:
     """Return {title: monthly_avg_views} for each title from sv.wikipedia (trailing 12 months).
 
     Returns 0.0 for titles with no Swedish Wikipedia article or any fetch error.
-    Wikimedia Analytics API allows ~100 req/s with User-Agent set — no heavy rate limit needed.
+    Wikimedia Analytics API allows ~100 req/s with User-Agent set, no heavy rate limit needed.
     """
     today = datetime.utcnow()
     end_str   = today.strftime("%Y%m") + "01"
@@ -232,7 +232,7 @@ def fetch_sv_pageviews_avg(titles: list, session: requests.Session) -> dict:
         encoded = requests.utils.quote(title.strip().replace(" ", "_"), safe="")
         url = f"{PAGEVIEWS_API}/{encoded}/monthly/{start_str}/{end_str}"
         try:
-            time.sleep(0.05)  # 20 req/s — well within Wikimedia limits
+            time.sleep(0.05)  # 20 req/s, well within Wikimedia limits
             resp = session.get(url, timeout=10)
             if resp.status_code == 404:
                 results[title] = 0.0

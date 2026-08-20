@@ -168,7 +168,7 @@ def build_reverse_lemma_map(
         try:
             nlp = spacy.load("sv_core_news_sm", disable=["parser", "ner", "senter"])
         except OSError:
-            print("spaCy-modell 'sv_core_news_sm' saknas — installera den med:")
+            print("spaCy-modell 'sv_core_news_sm' saknas, installera den med:")
             print("  python -m spacy download sv_core_news_sm")
             sys.exit(1)
 
@@ -248,7 +248,7 @@ def main() -> None:
 
     syn0 = model.syn0
     if syn0 is None:
-        print("Fel: model.syn0 är inte tillgänglig — uppgradera wikipedia2vec.")
+        print("Fel: model.syn0 är inte tillgänglig, uppgradera wikipedia2vec.")
         sys.exit(1)
     word_matrix = syn0[valid_word_idx].astype(np.float32)
     norms = np.linalg.norm(word_matrix, axis=1, keepdims=True)
@@ -347,7 +347,7 @@ def main() -> None:
     # 6b ── inject domain vocabulary expansions ────────────────────────────────
     # These words bypass the Kelly/Korp frequency gates in stage_4 because they are
     # domain-specific but common in Swedish (e.g. "aktier", "atlet"). Only add if
-    # the w2v model has a vector for them — no vector means no useful neighbour info.
+    # the w2v model has a vector for them, no vector means no useful neighbour info.
     try:
         from shared import DOMAIN_VOCAB_EXPANSIONS
         domain_added = 0
@@ -387,7 +387,7 @@ def main() -> None:
         try:
             nlp = spacy.load("sv_core_news_sm", disable=["parser", "ner", "senter"])
         except OSError:
-            print("spaCy-modell 'sv_core_news_sm' saknas — hoppar över lemmatisering.")
+            print("spaCy-modell 'sv_core_news_sm' saknas, hoppar över lemmatisering.")
             nlp = None
 
         if nlp is not None:
@@ -483,7 +483,7 @@ def main() -> None:
 
     # 8b ── domain vocabulary gap report ──────────────────────────────────────
     # Words in DOMAIN_VOCAB_EXPANSIONS that ended up missing from the final vocab
-    # need Phase 2 (supplementary corpus) to resolve — flag them clearly.
+    # need Phase 2 (supplementary corpus) to resolve, flag them clearly.
     try:
         from shared import DOMAIN_VOCAB_EXPANSIONS
         vocab_set = set(v.lower() for v in vocab)

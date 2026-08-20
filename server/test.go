@@ -178,7 +178,7 @@ package main
 // 				continue
 // 			}
 // 			guesses = 0
-// 			fmt.Printf("  Förra ordet var: %s%s%s — nytt ord valt!\n\n", colorGreen+colorBold, old, colorReset)
+// 			fmt.Printf("  Förra ordet var: %s%s%s, nytt ord valt!\n\n", colorGreen+colorBold, old, colorReset)
 // 			continue
 // 		}
 

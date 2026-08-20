@@ -23,7 +23,7 @@ func inferType(_ string, _ map[string]WordEntry) string {
 var ErrNoBinaryFiles = fmt.Errorf("binary wordfiles not found")
 
 // EntityTargets returns the subset of targets that are named entities
-// (company, celebrity, game, culture, …) — i.e. everything except the
+// (company, celebrity, game, culture, …), i.e. everything except the
 // general Korp vocabulary. These are the words that should be used as
 // the secret/target word in game modes; general words exist only so
 // player guesses are registered.
@@ -48,7 +48,7 @@ func WeightedPickTarget(targets []Target) (Target, bool) {
 		return Target{}, false
 	}
 
-	const alpha = 2.0   // exponent — higher values concentrate picks on top entries
+	const alpha = 2.0   // exponent, higher values concentrate picks on top entries
 	const epsilon = 0.1 // baseline weight so score-0 words still get picked
 
 	weights := make([]float64, len(targets))

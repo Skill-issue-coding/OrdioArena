@@ -31,7 +31,7 @@ DUMP_URL = (
 )
 
 # Swedish Wikipedia needs ~15 GB of LMDB address space for the dump DB.
-# This is a virtual reservation on 64-bit Linux — it does not pre-allocate disk.
+# This is a virtual reservation on 64-bit Linux, it does not pre-allocate disk.
 LMDB_MAPSIZE_MB = 30000
 
 DICT_ARGS = ["--min-word-count", "10", "--min-entity-count", "10"]
@@ -39,7 +39,7 @@ EMBED_ARGS = ["--dim-size", "300", "--window", "5", "--iteration", "10", "--nega
 
 
 # ---------------------------------------------------------------------------
-# Logging — write to both stdout and log file
+# Logging, write to both stdout and log file
 # ---------------------------------------------------------------------------
 _log_fh = None
 
@@ -58,7 +58,7 @@ def check_deps() -> None:
     try:
         import wikipedia2vec  # noqa: F401
     except ImportError:
-        log("wikipedia2vec not found — installing via pip...")
+        log("wikipedia2vec not found, installing via pip...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "wikipedia2vec"])
         log("wikipedia2vec installed.")
 
@@ -124,7 +124,7 @@ def build_dump_db() -> Path:
         return db_file
 
     map_size_bytes = LMDB_MAPSIZE_MB * 1024 * 1024
-    log(f"Building dump DB (map_size={LMDB_MAPSIZE_MB} MB) — this takes ~10 min.")
+    log(f"Building dump DB (map_size={LMDB_MAPSIZE_MB} MB), this takes ~10 min.")
 
     from wikipedia2vec.dump_db import DumpDB
     from wikipedia2vec.utils.wiki_dump_reader import WikiDumpReader
@@ -226,7 +226,7 @@ def validate() -> None:
     if all_ok:
         log("Validation passed.")
     else:
-        log("Validation finished with warnings — check the WARN/ERROR lines above.")
+        log("Validation finished with warnings, check the WARN/ERROR lines above.")
 
 
 # ---------------------------------------------------------------------------

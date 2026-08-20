@@ -15,7 +15,7 @@ Output:
   - server/wordfiles/targets.json   JSON list of target word strings
 
 At runtime the Go backend picks a random entry from this list and calls
-CalculateDistance() for every guess — no precomputed rankings needed.
+CalculateDistance() for every guess, no precomputed rankings needed.
 """
 
 import json
@@ -49,7 +49,7 @@ TARGET_POS = {"NOUN"}
 # Must appear at least this often in Korp AND be in Kelly to pass.
 MIN_KORP_FREQ = 1_000
 
-# Word length limits — too short = ambiguous, too long = obscure
+# Word length limits, too short = ambiguous, too long = obscure
 MIN_WORD_LEN = 4
 MAX_WORD_LEN = 20
 
@@ -73,7 +73,7 @@ log = _setup_logger()
 def load_encoded_vocab() -> set[str]:
     """Words that were actually encoded in stage 5 (our source of truth)."""
     if not VOCAB_FILE.exists():
-        print(f"Varning: {VOCAB_FILE} saknas — körs utan vocab-filter.")
+        print(f"Varning: {VOCAB_FILE} saknas, körs utan vocab-filter.")
         return set()
     with VOCAB_FILE.open("r", encoding="utf-8") as f:
         return {w.lower() for w in json.load(f)}
@@ -82,7 +82,7 @@ def load_encoded_vocab() -> set[str]:
 def collect_general_targets(encoded: set[str]) -> list[tuple[str, str]]:
     """Returns [(word, type), …] for general vocabulary targets."""
     if not STAGE4_CSV.exists():
-        print(f"Varning: {STAGE4_CSV} saknas — inga generella målord.")
+        print(f"Varning: {STAGE4_CSV} saknas, inga generella målord.")
         return []
 
     df = pd.read_csv(STAGE4_CSV)
@@ -233,11 +233,11 @@ def build_notability_lookup() -> tuple[dict[str, int], dict[str, float]]:
 # leads. Sitelinks measure global Wikipedia coverage (Sweden-blind: BlackRock
 # has many sitelinks, near-zero Swedish awareness), so they are demoted to a
 # secondary base. sv.wikipedia pageviews directly measure how many Swedes look
-# an entity up — the best available familiarity proxy. Both are heavy-tailed, so
+# an entity up, the best available familiarity proxy. Both are heavy-tailed, so
 # they are log-compressed before normalising.
-W_PAGEVIEWS = 0.55   # Swedish demand — the primary familiarity signal
-W_SITELINKS = 0.30   # global notability — de-weighted base / floor
-W_MAKT      = 0.15   # Maktbarometern — Swedish politics/business prominence
+W_PAGEVIEWS = 0.55   # Swedish demand, the primary familiarity signal
+W_SITELINKS = 0.30   # global notability, de-weighted base / floor
+W_MAKT      = 0.15   # Maktbarometern, Swedish politics/business prominence
 
 
 def compute_notability_score(
@@ -249,7 +249,7 @@ def compute_notability_score(
     max_makt: float,
     max_log_pageviews: float,
 ) -> float:
-    """[0, 1] — Swedish-familiarity blend (pageviews-led, sitelinks as base)."""
+    """[0, 1], Swedish-familiarity blend (pageviews-led, sitelinks as base)."""
     import math
     key = word.lower()
     pv_norm = (
@@ -289,7 +289,7 @@ def main():
             targets.append({"word": word, "type": word_type})
 
     if not targets:
-        print("Inga målord hittades — kontrollera att stage 3 körts och att entiteter har wiki-kontext.")
+        print("Inga målord hittades, kontrollera att stage 3 körts och att entiteter har wiki-kontext.")
         sys.exit(1)
 
     targets.sort(key=lambda t: t["word"].lower())
@@ -312,7 +312,7 @@ def main():
     log.info(f"Stage 7: {notable} targets with notability_score > 0")
 
     # Gate: remove entity targets that are demonstrably obscure.
-    # General vocabulary words are never gated — they are common Swedish nouns.
+    # General vocabulary words are never gated, they are common Swedish nouns.
 
     filtered: list[dict] = []
     skipped_score = 0
@@ -347,7 +347,7 @@ def main():
             else:
                 skipped_pv += 1
         else:
-            # No pageviews data available yet — keep to avoid over-filtering.
+            # No pageviews data available yet, keep to avoid over-filtering.
             filtered.append(t)
 
     log.info(

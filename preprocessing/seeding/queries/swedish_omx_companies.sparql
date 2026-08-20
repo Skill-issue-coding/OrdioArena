@@ -8,7 +8,7 @@ SELECT DISTINCT ?company ?companyLabel ?sitelinks WHERE {
   ?svArticle schema:isPartOf <https://sv.wikipedia.org/> ;
              schema:about ?company .
 
-  # Listed on Nasdaq OMX Stockholm — all are household Swedish names
+  # Listed on Nasdaq OMX Stockholm, all are household Swedish names
   ?company wdt:P414 wd:Q204677 .
   ?company wdt:P17 wd:Q34 .    # country: Sweden
 

@@ -2,3 +2,6 @@
 
 *.work*
 preprocessing/model/saldom.xml
+
+# Local GitHub seeder (labels/milestones/issues/project). Not part of the app.
+scripts/

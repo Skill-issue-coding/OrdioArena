@@ -140,7 +140,7 @@ def main():
         with SOURCES_FILE.open("r", encoding="utf-8") as f:
             loaded_sources: list[str] = json.load(f)
         if len(loaded_sources) != n:
-            print(f"Varning: sources.json har {len(loaded_sources)} poster men vocab har {n} — ignoreras.")
+            print(f"Varning: sources.json har {len(loaded_sources)} poster men vocab har {n}, ignoreras.")
         else:
             sources = loaded_sources
 
@@ -150,7 +150,7 @@ def main():
         print("Laddar query-embeddings…")
         eq = np.load(str(EMB_QUERY_FILE))
         if eq.shape != embeddings.shape:
-            print(f"Varning: query-embeddings har fel form {eq.shape} (förväntat {embeddings.shape}) — ignoreras.")
+            print(f"Varning: query-embeddings har fel form {eq.shape} (förväntat {embeddings.shape}), ignoreras.")
         else:
             embeddings_query = eq
             log.info(f"Stage 8: loaded query embeddings {eq.shape}")
@@ -182,7 +182,7 @@ def main():
             k         = min(top_k, n)
             keep.update(np.argpartition(-sims, k, axis=1)[:, :k].ravel().tolist())
             if batch_num % 10 == 0 or batch_num == total_batches:
-                print(f"  batch {batch_num}/{total_batches}  —  {len(keep):,} unika ord")
+                print(f"  batch {batch_num}/{total_batches} ,  {len(keep):,} unika ord")
         keep_sorted = sorted(keep)
         embeddings  = embeddings[keep_sorted]
         if embeddings_query is not None:
@@ -201,7 +201,7 @@ def main():
             embeddings_query = reduce_dims(embeddings_query, args.dims)
         dims = args.dims
     elif args.dims is not None and args.dims >= dims:
-        print(f"  --dims {args.dims} >= befintliga {dims} — hoppas över.")
+        print(f"  --dims {args.dims} >= befintliga {dims}, hoppas över.")
 
     # ── Finalise ──────────────────────────────────────────────────────────────
     out_emb = embeddings.astype("<f4")   # guarantee little-endian float32
@@ -261,7 +261,7 @@ def main():
     raw = OUT_BIN.read_bytes()
     first_vec = np.frombuffer(raw[: dims * 4], dtype="<f4")
     if not np.allclose(first_vec, out_emb[0], atol=1e-6):
-        print("VARNING: round-trip-kontroll misslyckades — binärfilen kan vara korrupt.")
+        print("VARNING: round-trip-kontroll misslyckades, binärfilen kan vara korrupt.")
         sys.exit(1)
 
     print(f"\nKlar! {m:,} vektorer ({dims} dims) exporterade till {OUTPUT_DIR}")

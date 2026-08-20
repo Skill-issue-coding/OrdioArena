@@ -370,7 +370,7 @@ func (g *ImpostorGame) pickImpostors() map[uuid.UUID]struct{} {
 // pipeline (stage 9) to be semantically close but clearly distinct from the
 // target, ensuring the impostor's word is plausible but not identical.
 // Returns (ImpostorPair, true) on success, or (ImpostorPair{}, false) if no
-// eligible target exists — for example when preprocessing has not been run.
+// eligible target exists, for example when preprocessing has not been run.
 func pickImpostorPair(dict *words.Dictionary, impostorCount int) (ImpostorPair, bool) {
 	entities := words.EntityTargets(dict.Targets)
 	eligible := make([]words.Target, 0, len(entities))
@@ -542,7 +542,7 @@ func (g *ImpostorGame) advanceInputPlayer() {
 
 	next := g.currentPlayer.nextNode
 	if next == g.startingPlayer {
-		// Full cycle done — follow input.Next to discussion
+		// Full cycle done, follow input.Next to discussion
 		g.currentPhase = g.currentPhase.Next
 		g.StartPhase(g.settings.DiscussionDuration)
 		g.sendDiscussionPhase()
@@ -768,7 +768,7 @@ func (g *ImpostorGame) sendIntermediatePhase(votedOut *uuid.UUID, message string
 	g.Broadcast(events.ImpostorIntermediateEvent, ImpostorIntermediatePayload{
 		GamePhasePayload: GamePhasePayload{
 			StartTime: g.startTime.UnixMilli(),
-			ReadyTime: g.startTime.UnixMilli(), // no sync delay — result display starts immediately
+			ReadyTime: g.startTime.UnixMilli(), // no sync delay, result display starts immediately
 			EndTime:   g.endTime.UnixMilli(),
 		},
 		Phase:         string(PhaseTypeIntermediate),

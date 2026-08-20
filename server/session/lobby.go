@@ -70,7 +70,7 @@ func (lobby *GameLobby) Run() {
 				continue
 			}
 
-			// Mutate Users and Host here — lobby.Run is the only writer of
+			// Mutate Users and Host here, lobby.Run is the only writer of
 			// lobby state, so this is safe without additional locking.
 			lobby.Users[client.UserId] = client.Profile
 			if lobby.Host == (uuid.UUID{}) {

@@ -107,7 +107,7 @@ func ReadBinaryFiles() map[string]WordEntry {
 			wordType = sources[i]
 		}
 
-		// Slice directly into the raw backing array — no per-word allocation.
+		// Slice directly into the raw backing array, no per-word allocation.
 		// Sanitize any NaN/Inf in-place before storing.
 		row := raw[i*meta.Dims : (i+1)*meta.Dims]
 		for j, v := range row {
@@ -129,11 +129,11 @@ func ReadBinaryFiles() map[string]WordEntry {
 	return wordMap
 }
 
-// LoadTargets reads targets.json — the curated Contexto target word list
+// LoadTargets reads targets.json, the curated Contexto target word list
 // produced by stage 7. Returns nil if the file is absent (callers fall back
 // to SetRandomActiveWord over the full dictionary).
 // Accepts both the new format ([{"word":"…","type":"…"}]) and the legacy
-// format (["word",…]) — legacy entries get type "general".
+// format (["word",…]), legacy entries get type "general".
 // NotabilityScore values are re-normalised so the highest score in the list
 // maps to 1.0, regardless of what the preprocessing pipeline produced.
 func LoadTargets() []Target {

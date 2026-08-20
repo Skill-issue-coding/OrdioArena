@@ -39,7 +39,7 @@ NEIGHBOURS_PER_SEED = 70
 TOP_N_PER_SEED      = 50
 MIN_WORD_LEN        = 3
 
-DEFAULT_KORP_FREQ = 300 # Minimum Korp frequency — keeps ~50K words vs ~300K at 30
+DEFAULT_KORP_FREQ = 300 # Minimum Korp frequency, keeps ~50K words vs ~300K at 30
 CATEGORY_KORP_FREQ = {
     "character": 5,     # Keep low for specific names
     "game": 5,          

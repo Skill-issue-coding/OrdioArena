@@ -80,7 +80,7 @@ func (hub *GameHub) Run() {
 				select {
 				case client.Send <- message:
 				default:
-					// Send buffer is full — treat as a dead connection.
+					// Send buffer is full, treat as a dead connection.
 					close(client.Send)
 					delete(hub.Clients, client)
 				}

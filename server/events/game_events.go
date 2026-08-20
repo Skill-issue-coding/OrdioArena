@@ -1,7 +1,7 @@
 package events
 
 // =============================================================================
-// Server → Client: Impostor mode — events unique to this mode
+// Server → Client: Impostor mode, events unique to this mode
 // =============================================================================
 
 const (

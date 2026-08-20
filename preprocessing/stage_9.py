@@ -13,7 +13,7 @@ every target:
                             Lets Contexto show calibrated hot/warm/cold hints that
                             are meaningful regardless of target word.
 
-       antihive_threshold   Cosine *distance* at rank 500 — the natural boundary
+       antihive_threshold   Cosine *distance* at rank 500, the natural boundary
                             for "this word is related enough to count" in Anti-Hivemind.
                             Replaces the single global MaxDistance constant.
 
@@ -26,7 +26,7 @@ Inputs:
   - server/wordfiles/targets.json             (stage 7)
   - intermediate/stage5_encoded/embeddings.npy
   - intermediate/stage5_encoded/vocab.json
-  - intermediate/stage5_encoded/sources.json  (optional — for impostor category match)
+  - intermediate/stage5_encoded/sources.json  (optional, for impostor category match)
   - intermediate/stage5_encoded/lemma_map.json
 
 Output (overwrites server/wordfiles/targets.json):
@@ -68,7 +68,7 @@ IMPOSTOR_MAX_CANDIDATES = 12    # store at most this many candidates
 # For entity targets (company / celebrity / game) the neighbour-search approach
 # surfaces specific peer entities (other brands, other DJs) rather than broad
 # category descriptors.  Instead we pick from this curated pool of domain words
-# and rank them by similarity to the specific target — so Sony gets "konsol" and
+# and rank them by similarity to the specific target, so Sony gets "konsol" and
 # "dator" before "bil", while Google gets "söktjänst" and "webbtjänst" first.
 #
 # Candidates are kept if they rank in the top IMPOSTOR_POOL_GUARANTEED positions
@@ -121,7 +121,7 @@ DYNAMIC_POOL_MAX = 40
 
 # Slurs / profanity that must never be surfaced to players as impostor words,
 # regardless of how frequent they are in the (casual-register) Korp corpus.
-# These slip past POS / frequency / stopword filters — flashback/familjeliv text
+# These slip past POS / frequency / stopword filters, flashback/familjeliv text
 # makes them common. Exact lowercased-token match. Extend as playtests surface more.
 PROFANITY_BLOCKLIST: set[str] = {
     "svartskalle", "svartskallar", "blatte", "blattar", "neger", "negern", "negrer",
@@ -233,7 +233,7 @@ def main() -> None:
         if len(loaded_src) == n:
             sources = loaded_src
         else:
-            print(f"  Varning: sources.json har fel längd ({len(loaded_src)} ≠ {n}) — ignoreras för impostorkandidater.")
+            print(f"  Varning: sources.json har fel längd ({len(loaded_src)} ≠ {n}), ignoreras för impostorkandidater.")
 
     # ── Load lemma map ────────────────────────────────────────────────────────
     lemma_map: dict[str, str] = {}
@@ -273,7 +273,7 @@ def main() -> None:
     for t in targets:
         idx = word_to_idx.get(t["word"].lower())
         if idx is None:
-            log.warning(f"Stage 9: '{t['word']}' saknas i vocab — hoppas över")
+            log.warning(f"Stage 9: '{t['word']}' saknas i vocab, hoppas över")
             continue
         valid_targets.append(t)
         valid_idxs.append(idx)
@@ -368,7 +368,7 @@ def main() -> None:
                         break  # sorted descending, nothing further qualifies
 
                     if c_sim > IMPOSTOR_MAX_SIM:
-                        continue  # too close — would give the game away
+                        continue  # too close, would give the game away
 
                     c_word  = vocab[c_idx]
                     c_lower = c_word.lower()
@@ -382,7 +382,7 @@ def main() -> None:
                         continue  # never surface slurs to players
 
                     # Only common-vocabulary words make good fallback impostors.
-                    # Other entities (PROPN) here are peer names — for a target like
+                    # Other entities (PROPN) here are peer names, for a target like
                     # "Zlatan" the nearest neighbours are footballer/Balkan names and
                     # casual-corpus slang, which read as garbage. Restrict to the
                     # "general" source so culture/general targets get real words.

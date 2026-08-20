@@ -51,7 +51,7 @@ func (c *Client) WritePump() {
 		select {
 		case message, ok := <-c.Send:
 			if !ok {
-				// Hub closed the channel — send a graceful close frame.
+				// Hub closed the channel, send a graceful close frame.
 				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
@@ -133,14 +133,14 @@ func (c *Client) ReadPump() {
 
 		switch event.Type {
 
-		// create_lobby — creates a new room and registers the client into it.
+		// create_lobby, creates a new room and registers the client into it.
 		// Users/Host are written by lobby.Run when it processes the Register.
 		case events.CreateLobbyRequestEvent:
 			code := c.Hub.CreateUniqueRoom()
 			lobby := c.Hub.GetRoom(code)
 			lobby.Register <- c
 
-		// join_lobby — validates the room code and registers the client into
+		// join_lobby, validates the room code and registers the client into
 		// an existing lobby. The in-game check is enforced by lobby.Run.
 		case events.JoinLobbyRequestEvent:
 			payload, err := events.DecodePayload[JoinLobbyPayload](event)
@@ -174,7 +174,7 @@ func (c *Client) ReadPump() {
 			}
 			c.Lobby.Unregister <- c
 
-		// update_user — updates the client's username and/or background color.
+		// update_user, updates the client's username and/or background color.
 		case events.UpdateUserRequestEvent:
 			payload, err := events.DecodePayload[UpdateUserPayload](event)
 			if err != nil {

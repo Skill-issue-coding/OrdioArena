@@ -19,7 +19,7 @@ SELECT DISTINCT ?company ?companyLabel ?sitelinks WHERE {
     wd:Q1968435   # electronic consumer goods manufacturer
   }
   ?company wdt:P31 ?consumerType .
-  # No P17 country restriction — IKEA, Porsche, H&M are globally known in Sweden
+  # No P17 country restriction, IKEA, Porsche, H&M are globally known in Sweden
   ?company wikibase:sitelinks ?sitelinks .
   FILTER(?sitelinks > 20)
 

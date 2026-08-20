@@ -19,7 +19,7 @@ type GamePhase string
 type GameMode string
 
 const (
-	// LobbyPhase indicates the lobby is in the waiting room — players can join
+	// LobbyPhase indicates the lobby is in the waiting room, players can join
 	// and settings can be changed, but the game has not started.
 	LobbyPhase GamePhase = "lobby"
 
@@ -81,7 +81,7 @@ type UserProfile struct {
 
 // LobbyState is the complete shared lobby state that is broadcast to every
 // client in a lobby on each sync. It contains no private per-player data and
-// no game-specific state — game phases manage their own state via GameOutput events.
+// no game-specific state, game phases manage their own state via GameOutput events.
 type LobbyState struct {
 	Code     string                     `json:"code"`
 	Mode     GameMode                   `json:"mode"`

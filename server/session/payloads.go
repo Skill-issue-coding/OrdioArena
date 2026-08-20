@@ -35,7 +35,7 @@ type JoinLobbyPayload struct {
 }
 
 // UpdateUserPayload is the payload for the update_user event. All fields are
-// optional — only non-empty values are applied to the player's profile.
+// optional, only non-empty values are applied to the player's profile.
 type UpdateUserPayload struct {
 	// Username is the new display name. It is ignored if empty or whitespace-only.
 	Username string `json:"username,omitempty"`

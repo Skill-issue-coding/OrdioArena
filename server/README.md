@@ -1,4 +1,4 @@
-# Server — Architecture & Protocol
+# Server, Architecture & Protocol
 
 This document covers the complete message flow from the frontend WebSocket connection through
 the server's goroutine topology, down to the active game and back.
@@ -9,7 +9,7 @@ the server's goroutine topology, down to the active game and back.
 
 | Method | Path                 | Handler           | Description                                                             |
 | ------ | -------------------- | ----------------- | ----------------------------------------------------------------------- |
-| `GET`  | `/api/status`        | `HandleStatus`    | Health check — returns `{status: "online"}`                             |
+| `GET`  | `/api/status`        | `HandleStatus`    | Health check, returns `{status: "online"}`                              |
 | `POST` | `/api/game/username` | `NewUsername`     | Generates a random Swedish display name for an already-connected client |
 | `GET`  | `/ws/game`           | `HandleWebSocket` | Upgrades to WebSocket; creates a `Client` and registers it with the hub |
 
@@ -18,7 +18,7 @@ the server's goroutine topology, down to the active game and back.
 ## Goroutine & Channel Topology
 
 Every layer owns its state exclusively through a single goroutine. Goroutines communicate
-only via typed channels — no shared-memory locks except the hub's `LobbiesMutex` (used
+only via typed channels, no shared-memory locks except the hub's `LobbiesMutex` (used
 only by HTTP upgrade handlers that run outside the hub goroutine).
 
 ```mermaid
@@ -64,29 +64,29 @@ A non-nil `Target` means send privately to that one player.
 
 | Event              | Payload                              | Auth                                  | Description                                                                      |
 | ------------------ | ------------------------------------ | ------------------------------------- | -------------------------------------------------------------------------------- |
-| `create_lobby`     | —                                    | any                                   | Creates a new room; sender becomes host                                          |
+| `create_lobby`     | ,                                    | any                                   | Creates a new room; sender becomes host                                          |
 | `join_lobby`       | `{lobby_code: string}`               | any                                   | Joins existing room by code                                                      |
-| `leave_lobby`      | —                                    | any                                   | Leaves current room                                                              |
+| `leave_lobby`      | ,                                    | any                                   | Leaves current room                                                              |
 | `update_user`      | `{username?, background?}`           | any                                   | Updates display name / color                                                     |
 | `change_mode`      | `{mode: GameMode}`                   | host only                             | Switches game mode                                                               |
 | `update_setting`   | `{key: GameSetting, value: float64}` | host only                             | Updates one setting                                                              |
 | `send_chatmessage` | `{message: string}`                  | any (active players only during game) | Broadcasts a chat message                                                        |
-| `start_game`       | —                                    | host only                             | Starts the game                                                                  |
-| `sync_request`     | —                                    | any                                   | Requests the server to re-broadcast current lobby state to the requesting client |
+| `start_game`       | ,                                    | host only                             | Starts the game                                                                  |
+| `sync_request`     | ,                                    | any                                   | Requests the server to re-broadcast current lobby state to the requesting client |
 
 ### Server → Client
 
 | Event              | Target    | Payload                              | Trigger                                                            |
 | ------------------ | --------- | ------------------------------------ | ------------------------------------------------------------------ |
 | `connected_to_hub` | private   | `{user: UserProfile}`                | On WS connection                                                   |
-| `joined_lobby`     | private   | —                                    | After successful join/create                                       |
-| `left_lobby`       | private   | —                                    | After leaving                                                      |
-| `join_error`       | private   | —                                    | When a join attempt fails (game in progress, lobby full, bad code) |
+| `joined_lobby`     | private   | ,                                    | After successful join/create                                       |
+| `left_lobby`       | private   | ,                                    | After leaving                                                      |
+| `join_error`       | private   | ,                                    | When a join attempt fails (game in progress, lobby full, bad code) |
 | `sync_gamestate`   | broadcast | `{lobbystate: LobbyState, message?}` | Any shared state change                                            |
 | `error`            | private   | `{message: string}`                  | Validation failure                                                 |
 | `success`          | private   | `{message: string}`                  | Positive acknowledgment                                            |
 | `chat_message`     | broadcast | `{sender, message, date}`            | Chat message received                                              |
-| `game_started`     | broadcast | —                                    | Host triggers start                                                |
+| `game_started`     | broadcast | ,                                    | Host triggers start                                                |
 
 `LobbyState` contains `{code, mode, phase, host, users, settings}`.
 `phase` is either `"lobby"` or `"game_started"`.
@@ -96,12 +96,12 @@ A non-nil `Target` means send privately to that one player.
 
 ## Implemented Game Modes
 
-| Mode string       | Struct          | Status                            |
-| ----------------- | --------------- | --------------------------------- |
-| `impostor`        | `ImpostorGame`  | Implemented                       |
-| `anti_match`      | `AntiMatchGame` | Implemented                       |
-| `contexto_battle` | `ContextoGame`  | Settings only — game not wired up |
-| `synonym_duel`    | —               | Settings only — game not wired up |
+| Mode string       | Struct          | Status                           |
+| ----------------- | --------------- | -------------------------------- |
+| `impostor`        | `ImpostorGame`  | Implemented                      |
+| `anti_match`      | `AntiMatchGame` | Implemented                      |
+| `contexto_battle` | `ContextoGame`  | Settings only, game not wired up |
+| `synonym_duel`    | ,               | Settings only, game not wired up |
 
 ---
 
@@ -132,7 +132,7 @@ Game over conditions (checked after each `intermediate` phase):
 - Normal players win: all impostors eliminated
 - Impostors win by timeout: `cycleNumber` reaches 127
 
-### Events — Server → Client
+### Events, Server → Client
 
 | Event                        | Target               | Payload fields                                                                       | When                                              |
 | ---------------------------- | -------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------- |
@@ -151,12 +151,12 @@ as Unix millisecond timestamps so clients can render countdown timers.
 `ready_time` is omitted (set equal to `start_time`) for `impostor_intermediate` since result
 display begins immediately with no sync delay.
 
-### Events — Client → Server
+### Events, Client → Server
 
-| Event              | Payload                  | Valid phase                                                       |
-| ------------------ | ------------------------ | ----------------------------------------------------------------- |
-| `game_submit_word` | `{word: string}`         | `input` — only accepted from `current_player`                     |
-| `game_submit_vote` | `{target: uuid \| null}` | `vote` — `null` = skip; only from active (non-eliminated) players |
+| Event              | Payload                  | Valid phase                                                      |
+| ------------------ | ------------------------ | ---------------------------------------------------------------- |
+| `game_submit_word` | `{word: string}`         | `input`, only accepted from `current_player`                     |
+| `game_submit_vote` | `{target: uuid \| null}` | `vote`, `null` = skip; only from active (non-eliminated) players |
 
 ### Sequence Diagram (single cycle)
 
@@ -239,7 +239,7 @@ stateDiagram-v2
     result --> [*]
 ```
 
-### Events — Server → Client
+### Events, Server → Client
 
 | Event                         | Target    | Payload fields                                                                                       | When                                                          |
 | ----------------------------- | --------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
@@ -251,11 +251,11 @@ stateDiagram-v2
 `results` is a map of `player_id → {word, score, is_duplicate, total_score}`.
 `winner` is the `player_id` with the highest non-duplicate score for that round, or `null`.
 
-### Events — Client → Server
+### Events, Client → Server
 
-| Event              | Payload          | Valid phase                                                                          |
-| ------------------ | ---------------- | ------------------------------------------------------------------------------------ |
-| `game_submit_word` | `{word: string}` | `input` — word must exist in dictionary; last write wins if submitted multiple times |
+| Event              | Payload          | Valid phase                                                                         |
+| ------------------ | ---------------- | ----------------------------------------------------------------------------------- |
+| `game_submit_word` | `{word: string}` | `input`, word must exist in dictionary; last write wins if submitted multiple times |
 
 ### Anti-Match Scoring
 
@@ -287,7 +287,7 @@ network latency before the next phase event arrives.
 | `input_duration` | 20 s    | 10 s | 60 s |
 | `rounds`         | 3       | 1    | 5    |
 
-### Contexto Battle (settings only — game not implemented)
+### Contexto Battle (settings only, game not implemented)
 
 | Key              | Default | Min  | Max   |
 | ---------------- | ------- | ---- | ----- |
@@ -295,7 +295,7 @@ network latency before the next phase event arrives.
 | `word_type`      | 1       | 1    | 2     |
 | `rounds`         | 3       | 1    | 5     |
 
-### Synonym Duel (settings only — game not implemented)
+### Synonym Duel (settings only, game not implemented)
 
 | Key              | Default | Min  | Max  |
 | ---------------- | ------- | ---- | ---- |
@@ -307,9 +307,9 @@ network latency before the next phase event arrives.
 
 ## Known Gaps / TODOs
 
-| #   | Location                              | Description                                                                                                                                       |
-| --- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `lobby.go` (`StartGameRequests` case) | `ModeContextoBattle` and `ModeSynonymDuel` are not in the switch — `lobby.CurrentGame` stays `nil` and the client gets "Spelläget stöds inte än". |
-| 2   | `antimatch.go` (`Run`)                | `playerLeft` channel is not consumed — a player disconnecting mid-game is silently ignored and they keep a slot in the round entries map.         |
-| 3   | `impostor.go` (`processInput`)        | No per-player vote acknowledgment — after casting a vote the voter receives no confirmation event, only the broadcast `impostor_vote_update`.     |
-| 4   | `websocket.go` (`upgrader`)           | `CheckOrigin` always returns `true` — all origins are accepted. Must be restricted before production.                                             |
+| #   | Location                              | Description                                                                                                                                      |
+| --- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | `lobby.go` (`StartGameRequests` case) | `ModeContextoBattle` and `ModeSynonymDuel` are not in the switch, `lobby.CurrentGame` stays `nil` and the client gets "Spelläget stöds inte än". |
+| 2   | `antimatch.go` (`Run`)                | `playerLeft` channel is not consumed, a player disconnecting mid-game is silently ignored and they keep a slot in the round entries map.         |
+| 3   | `impostor.go` (`processInput`)        | No per-player vote acknowledgment, after casting a vote the voter receives no confirmation event, only the broadcast `impostor_vote_update`.     |
+| 4   | `websocket.go` (`upgrader`)           | `CheckOrigin` always returns `true`, all origins are accepted. Must be restricted before production.                                             |
