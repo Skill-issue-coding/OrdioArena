@@ -7,6 +7,8 @@ import (
 	"server/game"
 	"server/words"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -98,13 +100,28 @@ type GameLobby struct {
 	ID string
 
 	// Clients is the set of currently connected players in this lobby.
+	// Owned by Run: it is read and written only from that goroutine, and no
+	// other goroutine may touch it. Anything outside must use PlayerCount.
 	Clients map[*Client]bool
+
+	// playerCount mirrors len(Clients) for readers outside the Run goroutine.
+	//
+	// It exists because GameHub.totalPlayers sums player counts across every
+	// lobby from the hub's goroutine, and LobbiesMutex only guards which
+	// lobbies exist, never the fields inside one. Reading len(Clients) from
+	// there is a concurrent map read against Run's writes, which the Go runtime
+	// can escalate from a race warning to an unrecoverable
+	// "concurrent map read and map write" crash.
+	//
+	// Written only by Run, immediately after every Clients mutation, and only
+	// ever as a whole-length Store so it cannot drift from the map it mirrors.
+	playerCount atomic.Int64
 
 	// Register adds a new client to the lobby.
 	Register chan *Client
 
 	// Unregister removes a client from the lobby (on disconnect or leave).
-	Unregister chan *Client
+	Unregister chan LeaveRequest
 
 	// ChatMessages is a channel to broadcast chat messages to all clients in the lobby.
 	ChatMessages chan ChatMessage
@@ -185,8 +202,18 @@ type GameHub struct {
 	// LobbiesMutex guards the Lobbies map for concurrent access from handler goroutines.
 	LobbiesMutex sync.RWMutex
 
-	// Broadcast sends a raw message to every connected client.
-	Broadcast chan []byte
+	// Secret is a 32 byte HMAC secret
+	Secret []byte
+
+	// Sessions maps a stable UserId to its last known identity and lobby, so a
+	// reconnecting socket can be told who it is and where it was before it has
+	// rejoined anything. Entries survive the *Client that created them.
+	Sessions map[uuid.UUID]*SessionEntry
+
+	// SessionsMutex guards Sessions for concurrent access from handler
+	// goroutines, mirroring LobbiesMutex above: the WS-upgrade handler reads
+	// and writes this before a Client exists to register with hub.Run.
+	SessionsMutex sync.RWMutex
 
 	// Register adds a newly connected client to the hub.
 	Register chan *Client
@@ -200,4 +227,29 @@ type ChatMessage struct {
 	Sender  UserProfile `json:"sender"`
 	Message string      `json:"message"`
 	Date    int64       `json:"date"`
+}
+
+// SessionEntry is the hub's record of a player's identity between sockets. It
+// answers "does this token still correspond to someone we know, and where were
+// they" before a reconnecting client has joined anything.
+type SessionEntry struct {
+	// Profile is a value copy, not the *UserProfile pointer a Client holds, so
+	// it survives the Client that created it: a rename made just before a
+	// disconnect is not lost to a pointer that no longer has a reader.
+	Profile UserProfile
+
+	LobbyCode string // "" when not in a lobby
+
+	// LastSeen is refreshed on every TouchSession call. It is what the sweep
+	// in GameHub.Run uses to expire entries nobody has resumed.
+	LastSeen time.Time
+
+	// Client is the socket that currently owns this identity, nil when nobody
+	// is connected under it. Guarded by SessionsMutex rather than owned by
+	// hub.Run, the same carve-out as LobbiesMutex: the WS-upgrade handler must
+	// be able to displace a previous tab before any Client exists to register.
+	// It is written only under the mutex and read only to displace — never
+	// dereferenced for state, which is what keeps it from becoming a second
+	// owner of client lifecycle.
+	Client *Client
 }

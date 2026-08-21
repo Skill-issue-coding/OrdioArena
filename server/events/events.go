@@ -53,6 +53,10 @@ const (
 	// GameStartedEvent is sent when the server has started the game
 	// Payload: nil
 	GameStartedEvent EventType = "game_started"
+
+	// SessionReplacedEvent is sent when the same token is used twice, dropping the old connection
+	// Payload: nil
+	SessionReplacedEvent EventType = "session_replaced"
 )
 
 // Client → Server event types.
@@ -97,6 +101,10 @@ const (
 	// SyncRequestEvent asks the server to broadcast the latest lobby state.
 	// Payload: nil
 	SyncRequestEvent EventType = "sync_request"
+
+	// ResumeRequestEvent is recieved when a client has been disconnected and wants to reconnect
+	// Payload:
+	ResumeRequestEvent EventType = "resume"
 )
 
 // Event is the wire envelope for all WebSocket messages. Both directions use

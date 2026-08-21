@@ -3,8 +3,8 @@ package session
 import (
 	"server/events"
 	"server/game"
+	"server/game/util"
 	"server/logging"
-	"server/util"
 	"strings"
 	"time"
 
@@ -14,23 +14,23 @@ import (
 const (
 	// pongWait is the maximum time to wait for a pong response before
 	// treating the connection as dead and closing it.
-	pongWait = 40 * time.Second
+	PONG_WAIT = 40 * time.Second
 
 	// pingInterval is how often the server sends a ping frame to the client
 	// to keep the connection alive. It must be less than pongWait.
-	pingInterval = 20 * time.Second
+	PING_INTERVAL = 20 * time.Second
 
-	// socketReadLimit is the maximum size in bytes of a single incoming
+	// SOCKET_READ_LIMIT is the maximum size in bytes of a single incoming
 	// WebSocket message. Messages exceeding this limit are rejected.
-	socketReadLimit int64 = 1024
+	SOCKET_READ_LIMIT int64 = 1024
 
-	// maxMessagesPerSecond is the rate limit threshold. If a client exceeds
+	// MAX_MESSAGES_PER_SEC is the rate limit threshold. If a client exceeds
 	// this many messages within a one-second window, a warning is issued.
-	maxMessagesPerSecond int = 30
+	MAX_MESSAGES_PER_SEC int = 30
 
-	// maxMessageWarnings is the number of rate limit violations allowed before
+	// MAX_MESSAGE_WARNINGS is the number of rate limit violations allowed before
 	// the client is forcibly disconnected.
-	maxMessageWarnings int = 3
+	MAX_MESSAGE_WARNINGS int = 3
 )
 
 // WritePump runs in its own goroutine and is the only writer to the WebSocket
@@ -40,7 +40,7 @@ const (
 // When the Send channel is closed (by the hub on disconnect), WritePump sends
 // a WebSocket close frame and exits, which in turn causes ReadPump to exit.
 func (c *Client) WritePump() {
-	ticker := time.NewTicker(pingInterval)
+	ticker := time.NewTicker(PING_INTERVAL)
 	defer func() {
 		ticker.Stop()
 		c.Conn.Close()
@@ -86,12 +86,12 @@ func (c *Client) ReadPump() {
 		c.Conn.Close()
 	}()
 
-	if err := c.Conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+	if err := c.Conn.SetReadDeadline(time.Now().Add(PONG_WAIT)); err != nil {
 		logging.Hub.Error("set read deadline failed", "id", c.UserId, "err", err)
 		return
 	}
 
-	c.Conn.SetReadLimit(socketReadLimit)
+	c.Conn.SetReadLimit(SOCKET_READ_LIMIT)
 	c.Conn.SetPongHandler(c.pongHandler)
 
 	messageCount := 0
@@ -115,11 +115,11 @@ func (c *Client) ReadPump() {
 		}
 
 		messageCount++
-		if messageCount > maxMessagesPerSecond {
+		if messageCount > MAX_MESSAGES_PER_SEC {
 			messageWarnings++
 			messageCount = 0
 			logging.Hub.Warn("rate limit exceeded", "id", c.UserId, "warnings", messageWarnings)
-			if messageWarnings >= maxMessageWarnings {
+			if messageWarnings >= MAX_MESSAGE_WARNINGS {
 				break
 			}
 			continue
@@ -172,7 +172,9 @@ func (c *Client) ReadPump() {
 				c.SendError("Du är inte i ett rum")
 				continue
 			}
-			c.Lobby.Unregister <- c
+			// An explicit leave, so it is immediate and final. It must never be
+			// mistaken for a dropped socket and held open for a grace period.
+			c.Lobby.Unregister <- LeaveRequest{Client: c, Reason: ReasonLeave}
 
 		// update_user, updates the client's username and/or background color.
 		case events.UpdateUserRequestEvent:
@@ -304,15 +306,16 @@ func (c *Client) ReadPump() {
 // pongHandler is called automatically by the gorilla/websocket library whenever
 // a pong frame is received. It extends the read deadline to keep the connection alive.
 func (c *Client) pongHandler(_ string) error {
-	return c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	return c.Conn.SetReadDeadline(time.Now().Add(PONG_WAIT))
 }
 
 // SendEvent serialises the given payload into an event envelope with the
 // specified type and queues it on the client's Send channel for WritePump
 // to deliver. If the Send buffer is full (e.g. a dead or very slow
 // connection), the message is dropped rather than blocking the caller —
-// matching the same pattern used by GameHub.Broadcast. Safe to call from
-// any goroutine.
+// the non-blocking-send rule every cross-goroutine send in the server
+// follows, so one slow socket can never stall the hub, a lobby or a game.
+// Safe to call from any goroutine.
 func (c *Client) SendEvent(eventType events.EventType, payload any) {
 	defer func() {
 		if r := recover(); r != nil {

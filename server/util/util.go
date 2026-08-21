@@ -3,9 +3,7 @@ package util
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
-	"strings"
 )
 
 // palette is the set of background colors a player can be assigned.
@@ -50,35 +48,6 @@ func GenerateGameCode() string {
 	return fmt.Sprintf("%s-%s", segment(), segment())
 }
 
-// CosineDistance computes the cosine distance between two equal-length float64
-// vectors. Returns a value in [0, 2] where 0 means identical direction and 2
-// means opposite direction. Returns math.NaN() if either vector is empty,
-// they differ in length, or either has zero magnitude.
-//
-// This is the core similarity primitive used by all game modes to compare
-// Swedish fastText word vectors.
-func CosineDistance(vecA []float32, vecB []float32) float64 {
-	if len(vecA) == 0 || len(vecB) == 0 || len(vecA) != len(vecB) {
-		return math.NaN()
-	}
-
-	var dot, normA, normB float64
-
-	for i := range vecA {
-		a, b := float64(vecA[i]), float64(vecB[i])
-		dot += a * b
-		normA += a * a
-		normB += b * b
-	}
-
-	if normA == 0 || normB == 0 {
-		return math.NaN()
-	}
-
-	cosineSimilarity := dot / (math.Sqrt(normA) * math.Sqrt(normB))
-	return 1 - cosineSimilarity
-}
-
 // GenerateUsername returns a random Swedish display name in the format
 // "<Adjective><Noun><Number>", e.g. "KnasigFlamingo42".
 // Called once per WebSocket connection in the HTTP upgrade handler.
@@ -115,10 +84,4 @@ func ClampFloat(val float64, min float64, max float64) float64 {
 		return max
 	}
 	return val
-}
-
-// IsValidWordSubmission reports whether s is a valid word submission:
-// non-empty after trimming leading/trailing whitespace.
-func IsValidWordSubmission(s string) bool {
-	return strings.TrimSpace(s) != ""
 }

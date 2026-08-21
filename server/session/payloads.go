@@ -24,6 +24,18 @@ type SyncStatePayload struct {
 // once to a client immediately after they connect.
 type ConnectedToHubPayload struct {
 	User UserProfile `json:"user"`
+
+	// Token is a fresh session token, reissued on every successful connect
+	// (sliding expiry). The client stores it and replays it as the resume
+	// handshake's token on its next connection.
+	Token string `json:"token"`
+
+	// Resumed is true when Token's id matched an existing session rather than
+	// being freshly minted. The client uses this to skip the "Välkommen"
+	// toast and show "Återansluten" instead.
+	Resumed bool `json:"resumed"`
+
+	LobbyCode *string `json:"lobby_code"` // nil -> JSON null, not omitted
 }
 
 // Client → Server -------------------------------------------------------
@@ -59,4 +71,10 @@ type ChangeModePayload struct {
 type UpdateSettingPayload struct {
 	Key   GameSetting `json:"key"`
 	Value float64     `json:"value"`
+}
+
+// ResumeRequestPayload is the payload sent by the client when it has been disconnected
+// and wants to reconnect to the lobby/game that it was disconnected from.
+type ResumeRequestPayload struct {
+	Token string `json:"token"`
 }

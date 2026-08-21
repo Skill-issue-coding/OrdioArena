@@ -1,4 +1,4 @@
-package session
+package token
 
 import (
 	"crypto/hmac"
@@ -26,6 +26,15 @@ const (
 	// digest is the practical weak point of HMAC, so this is a floor, not a
 	// recommendation.
 	MIN_SECRET_BYTES = 32
+
+	// RESUME_DEADLINE is how long the WebSocket upgrade handler waits for the
+	// client's first message (the resume envelope) before giving up and
+	// treating the connection as a fresh identity. It exists so an old client
+	// build that never sends a resume message cannot hang the handshake: the
+	// deadline always resolves one way or the other. Read by
+	// server/handlers/websocket.go, defined here so the mint/parse/resume
+	// timing constants live in one place.
+	RESUME_DEADLINE = 2 * time.Second
 
 	sessionSecretEnv = "OA_SESSION_SECRET"
 )

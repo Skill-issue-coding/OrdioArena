@@ -4,6 +4,7 @@ import (
 	"maps"
 	"math/rand/v2"
 	"server/events"
+	"server/game/util"
 	"server/words"
 	"time"
 
@@ -42,13 +43,13 @@ const (
 // terminal result node. The default wiring creates a circular loop between
 // input, discussion, vote, and intermediate.
 // Break the loop by setting intermediate.Next = result before stopping.
-func buildImpostorPhaseChain() (showWord, intermediate, result *Phase[ImpostorPhaseType]) {
-	showWord = &Phase[ImpostorPhaseType]{Phase: PhaseTypeShowWord}
-	input := &Phase[ImpostorPhaseType]{Phase: PhaseTypeInput}
-	discussion := &Phase[ImpostorPhaseType]{Phase: PhaseTypeDiscussion}
-	vote := &Phase[ImpostorPhaseType]{Phase: PhaseTypeVote}
-	intermediate = &Phase[ImpostorPhaseType]{Phase: PhaseTypeIntermediate}
-	result = &Phase[ImpostorPhaseType]{Phase: PhaseTypeResult}
+func buildImpostorPhaseChain() (showWord, intermediate, result *util.Phase[ImpostorPhaseType]) {
+	showWord = &util.Phase[ImpostorPhaseType]{Phase: PhaseTypeShowWord}
+	input := &util.Phase[ImpostorPhaseType]{Phase: PhaseTypeInput}
+	discussion := &util.Phase[ImpostorPhaseType]{Phase: PhaseTypeDiscussion}
+	vote := &util.Phase[ImpostorPhaseType]{Phase: PhaseTypeVote}
+	intermediate = &util.Phase[ImpostorPhaseType]{Phase: PhaseTypeIntermediate}
+	result = &util.Phase[ImpostorPhaseType]{Phase: PhaseTypeResult}
 
 	showWord.Next = input
 	input.Next = discussion
@@ -112,14 +113,14 @@ type ImpostorGame struct {
 	wordPair ImpostorPair
 
 	// currentPhase is the current node in the phase linked list.
-	currentPhase *Phase[ImpostorPhaseType]
+	currentPhase *util.Phase[ImpostorPhaseType]
 
 	// intermediatePhase is kept so advancePhase can relink its Next to
 	// resultPhase when the game ends, breaking the circular loop.
-	intermediatePhase *Phase[ImpostorPhaseType]
+	intermediatePhase *util.Phase[ImpostorPhaseType]
 
 	// resultPhase is the terminal node; no Next. Linked in when the game ends.
-	resultPhase *Phase[ImpostorPhaseType]
+	resultPhase *util.Phase[ImpostorPhaseType]
 
 	// cycles is an array containing all the submissions and votes for all cycles
 	cycles []ImpostorCycle

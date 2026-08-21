@@ -3,8 +3,8 @@ package game
 import (
 	"math"
 	"server/events"
+	"server/game/util"
 	"server/logging"
-	"server/util"
 	"server/words"
 	"time"
 
@@ -37,10 +37,10 @@ const (
 // terminal result node.
 // The default wiring creates a circular loop between input and round_result.
 // Break the loop by setting roundResult.Next = result before stopping.
-func buildAntiMatchPhaseChain() (entry, roundResult, result *Phase[AntiMatchPhaseType]) {
-	entry = &Phase[AntiMatchPhaseType]{Phase: AntiMatchPhaseInput}
-	roundResult = &Phase[AntiMatchPhaseType]{Phase: AntiMatchPhaseRoundResult}
-	result = &Phase[AntiMatchPhaseType]{Phase: AntiMatchPhaseResult}
+func buildAntiMatchPhaseChain() (entry, roundResult, result *util.Phase[AntiMatchPhaseType]) {
+	entry = &util.Phase[AntiMatchPhaseType]{Phase: AntiMatchPhaseInput}
+	roundResult = &util.Phase[AntiMatchPhaseType]{Phase: AntiMatchPhaseRoundResult}
+	result = &util.Phase[AntiMatchPhaseType]{Phase: AntiMatchPhaseResult}
 	entry.Next = roundResult
 	roundResult.Next = entry // circular: loops back until game ends
 	return
@@ -118,9 +118,9 @@ type AntiMatchGame struct {
 	rounds           []RoundEntries
 	roundNumber      int
 	settings         AntiMatchSettings
-	phase            *Phase[AntiMatchPhaseType]
-	roundResultPhase *Phase[AntiMatchPhaseType] // kept to break the loop on game over
-	resultPhase      *Phase[AntiMatchPhaseType] // terminal node
+	phase            *util.Phase[AntiMatchPhaseType]
+	roundResultPhase *util.Phase[AntiMatchPhaseType] // kept to break the loop on game over
+	resultPhase      *util.Phase[AntiMatchPhaseType] // terminal node
 	TotalScores      map[uuid.UUID]int
 }
 

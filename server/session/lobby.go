@@ -25,6 +25,42 @@ const (
 	MAX_DISTANCE        GameSetting = "max_distance"
 )
 
+// LeaveReason distinguishes the ways a client stops being in a lobby. The
+// lobby cannot infer it: an explicit leave and a dropped socket both arrive as
+// a *Client on the same path today, and they must not be handled the same way.
+type LeaveReason uint8
+
+const (
+	// ReasonLeave is the player pressing leave. Immediate and final: an
+	// explicit departure must not linger for the grace period.
+	ReasonLeave LeaveReason = iota
+
+	// ReasonDisconnect is the socket dying, forwarded by hub.Run. The seat is
+	// held, not destroyed, until the grace timer says otherwise.
+	ReasonDisconnect
+)
+
+// String makes the reason readable in logs, which are otherwise handed a bare
+// uint8.
+func (r LeaveReason) String() string {
+	switch r {
+	case ReasonLeave:
+		return "leave"
+	case ReasonDisconnect:
+		return "disconnect"
+	}
+	return "unknown"
+}
+
+// LeaveRequest is what GameLobby.Unregister carries. The reason travels with
+// the client because only the sender knows it: client.go knows the player
+// pressed leave, hub.Run knows the socket died, and by the time the lobby
+// goroutine sees either one both look identical.
+type LeaveRequest struct {
+	Client *Client
+	Reason LeaveReason
+}
+
 // NewLobby creates and returns a new GameLobby with the given room code.
 // All channels are initialised and the mode is set to ModeImpostor with
 // default settings. The caller is responsible for starting the lobby.Run() goroutine.
@@ -33,7 +69,7 @@ func NewLobby(id string) *GameLobby {
 		ID:                    id,
 		Clients:               make(map[*Client]bool),
 		Register:              make(chan *Client),
-		Unregister:            make(chan *Client),
+		Unregister:            make(chan LeaveRequest),
 		ModeUpdateRequests:    make(chan GameMode),
 		SettingUpdateRequests: make(chan UpdateSettingPayload),
 		ChatMessages:          make(chan ChatMessage),
@@ -49,6 +85,18 @@ func NewLobby(id string) *GameLobby {
 	}
 	lobby.SetMode(ModeImpostor)
 	return lobby
+}
+
+// PlayerCount returns how many clients are connected to this lobby. It is the
+// only safe way to ask that question from outside the lobby's Run goroutine:
+// Clients is owned by Run, so len(lobby.Clients) from anywhere else is a
+// concurrent map read against Run's writes.
+//
+// The value is a snapshot taken without any lock, so it may be stale the
+// instant it is returned. That is sufficient for logging and metrics, and not
+// sufficient for anything that gates behaviour, capacity checks included.
+func (lobby *GameLobby) PlayerCount() int {
+	return int(lobby.playerCount.Load())
 }
 
 // Run is the lobby's main event loop. It must be started in its own goroutine
@@ -78,7 +126,15 @@ func (lobby *GameLobby) Run() {
 			}
 
 			lobby.Clients[client] = true
+			lobby.playerCount.Store(int64(len(lobby.Clients)))
 			client.Lobby = lobby
+
+			// Tell the registry where this seat lives, so the next socket that
+			// resumes this identity is handed the code in connected_to_hub
+			// rather than having to know it from its URL.
+			if client.Hub != nil {
+				client.Hub.SetSessionLobby(client.UserId, lobby.ID)
+			}
 
 			state := lobby.BuildLobbyState()
 			for c := range lobby.Clients {
@@ -102,22 +158,65 @@ func (lobby *GameLobby) Run() {
 			logging.Lobby.Info("player joined",
 				"room", lobby.ID, "user", client.Username(), "id", client.UserId, "players", len(lobby.Clients), "host", lobby.Host == client.UserId)
 
-		case client := <-lobby.Unregister:
+		case req := <-lobby.Unregister:
+			client := req.Client
 			if _, exists := lobby.Clients[client]; !exists {
+				// A socket this lobby does not hold. Both of a client's pumps
+				// send an unregister on the way out, so the second one always
+				// lands here.
 				continue
 			}
 
 			delete(lobby.Clients, client)
-			delete(lobby.Users, client.UserId)
+			lobby.playerCount.Store(int64(len(lobby.Clients)))
 
-			if lobby.Phase == GameStarted && lobby.CurrentGame != nil {
-				lobby.CurrentGame.PlayerLeft(client.UserId)
+			// Does this identity still have a live socket in the lobby?
+			//
+			// A replaced tab is unregistered after its successor has already
+			// joined, and both carry the same UserId. Removing the roster entry
+			// unconditionally would therefore evict the player who is sitting
+			// there playing, on the strength of a socket that is already dead.
+			// The Clients guard above does not cover this: it keys on the
+			// connection, and the roster keys on the identity.
+			//
+			// This is the interim form of the seat model's `seat.Client !=
+			// client` check, expressed against the maps that exist today.
+			stillSeated := false
+			for c := range lobby.Clients {
+				if c.UserId == client.UserId {
+					stillSeated = true
+					break
+				}
 			}
 
-			logging.Lobby.Info("player left",
-				"room", lobby.ID, "user", client.Username(), "id", client.UserId, "players", len(lobby.Clients))
+			if !stillSeated {
+				delete(lobby.Users, client.UserId)
 
-			client.SendEvent(events.LeftLobbyEvent, nil)
+				// The seat is gone, so the registry must stop naming this
+				// lobby: a code the player is no longer in would send their
+				// next socket back to a room that has forgotten them.
+				//
+				// This moves when the grace period lands. A disconnect will
+				// then have to KEEP the code, which is the entire point of the
+				// grace window, and only a hard removal (an explicit leave or a
+				// grace expiry) will clear it.
+				if client.Hub != nil {
+					client.Hub.SetSessionLobby(client.UserId, "")
+				}
+
+				if lobby.Phase == GameStarted && lobby.CurrentGame != nil {
+					lobby.CurrentGame.PlayerLeft(client.UserId)
+				}
+			}
+
+			logging.Lobby.Info("player left", "room", lobby.ID, "user", client.Username(), "id", client.UserId,
+				"reason", req.Reason.String(), "still_seated", stillSeated, "players", len(lobby.Clients))
+
+			// Only an explicit leave gets a confirmation. On a disconnect the
+			// socket is already gone and the event would be dropped anyway.
+			if req.Reason == ReasonLeave {
+				client.SendEvent(events.LeftLobbyEvent, nil)
+			}
 
 			// If the lobby is now empty, shut it down.
 			if len(lobby.Clients) == 0 {
@@ -131,8 +230,9 @@ func (lobby *GameLobby) Run() {
 				return
 			}
 
-			// If the host left, promote an arbitrary remaining player.
-			if lobby.Host == client.UserId {
+			// If the host left, promote an arbitrary remaining player. A host
+			// whose identity is still seated has not left at all.
+			if !stillSeated && lobby.Host == client.UserId {
 				for remaining := range lobby.Clients {
 					lobby.Host = remaining.UserId
 					logging.Lobby.Info("host promoted", "room", lobby.ID, "new_host", remaining.UserId, "user", remaining.Username())
