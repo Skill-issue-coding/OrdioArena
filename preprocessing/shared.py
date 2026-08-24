@@ -24,14 +24,13 @@ BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=BASE_DIR / ".env.local")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
-FASTTEXT_MODEL_PATH = BASE_DIR / "model" / "kubord-fasttext-afb-2010-2024-token.bin"
 BASE_KORP_DIR       = BASE_DIR / "korp"
 SEEDING_DIR         = BASE_DIR / "seeding"
 OUTPUT_DIR          = BASE_DIR.parent / "server" / "wordfiles"
 INTERMEDIATE_DIR    = BASE_DIR / "intermediate"
 CLEANED_KORP_DIR    = INTERMEDIATE_DIR / "korp_cleaned"
 SEEDING_CLEANED_DIR = INTERMEDIATE_DIR / "seeding_cleaned"
-SPACY_MODEL         = "sv_core_news_sm"
+SPACY_MODEL         = "sv_core_news_lg"
 STOPWORDS_DIR       = BASE_DIR / "stopwords"
 
 PCA_DIMS            = 100

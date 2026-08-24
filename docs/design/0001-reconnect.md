@@ -1,16 +1,10 @@
-> **Status:** Accepted, not implemented · **Tracking:** [#17](https://github.com/Skill-issue-coding/OrdioArena/issues/17) · **Supersedes:** [`archive/reconnect-plan-v1.md`](../../archive/reconnect-plan-v1.md) · **Updated:** 2026-08-20
+> **Status:** Accepted, not implemented · **Tracking:** [#17](https://github.com/Skill-issue-coding/OrdioArena/issues/17) · **Updated:** 2026-08-20
 >
 > Implementation order and progress live in issue #17 and its tasks, not here.
 
 ---
 
 # Reconnect / Session Resume, Plan v2
-
-Supersedes [`archive/reconnect-plan-v1.md`](../../archive/reconnect-plan-v1.md). Same goal, but the original plan has holes that would leave
-reconnect broken or subtly corrupt lobby state. This document keeps what was right, lists what
-was missing, and specifies the revised design.
-
-## Goal
 
 A player who refreshes the browser, loses network for a few seconds, or has their mobile tab
 backgrounded returns to the exact lobby and game they were in, with the same identity, name,
