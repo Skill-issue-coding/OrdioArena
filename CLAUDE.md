@@ -132,6 +132,45 @@ to pay this cost once (issue #31). Do that refactor before implementing the thir
 (= start + 2 s `SYNC_DELAY`) and `end_time` as Unix millisecond timestamps. Clients render
 countdowns from those; they never decide when a phase ends.
 
+## Deployment constraints
+
+**The server runs as a single instance. This is a hard constraint today, not a preference.**
+
+It follows directly from invariant #1. `GameHub.Lobbies` is an in-memory map, each
+`GameLobby.Run` is a goroutine in that process, and all lobby and game state lives inside those
+goroutines. Nothing is shared, persisted, or reachable from another process.
+
+Run two instances behind a load balancer and two players entering the same room code can land on
+different instances, join two unrelated lobbies, and never see each other. This is true of the
+code as it stands; reconnect does not introduce it, it only makes it visible.
+
+The failure is at least graceful, and must stay that way: `GetRoom` returns `nil` for an unknown
+code (`session/gamehub.go:133-136`), the only room creator is `CreateUniqueRoom` (there is no
+create-by-code path), and `join_lobby` answers a miss with "Hittade inget rum med den koden."
+(`session/client.go:161-166`). A second instance cannot fabricate a duplicate room. **Never add a
+code path that creates a lobby from a client-supplied code**, that property is what keeps a
+misrouted player on an error screen instead of in a split-brain room.
+
+**Deploys kill in-flight games.** Restarting drops every lobby. Reconnect does not help here;
+surviving a server restart is an explicit non-goal in `docs/design/0001-reconnect.md`.
+
+### If this ever changes
+
+- **Shard by lobby code, not by user.** Standard LB session affinity (sticky cookie, sticky IP)
+  pins a _user_ to an instance, but a lobby is shared by 3-12 users who would each be pinned
+  independently and scatter across instances. The lobby is the sharding unit, which suits the
+  architecture: one lobby is already one goroutine with no cross-lobby state. Consistent hashing
+  on the room code, which means the code must be visible to the router (`/ws/game/{code}` rather
+  than `/ws/game`).
+- **Keep the session token opaque and instance-agnostic** when it is built (issue #19). No node
+  id, no shard hint. A stateless token stays valid across any topology; one that encodes placement
+  turns every future scaling decision into a token-format migration.
+- **The signing secret must be identical on every instance**, that is what lets any instance
+  verify any other's token. Per-instance secrets would silently hand reconnecting players new
+  identities.
+- **Do not externalise lobby state to Redis to get there.** It is the textbook answer and it
+  dissolves invariant #1, which is what makes the current code safe without locks.
+
 ## Code map
 
 ### Server (`server/`)
@@ -264,8 +303,7 @@ formatting, moving a block, a config value).
 - The old Next.js client at `client/` has been **deleted on disk but the deletions are unstaged**,
   and `frontend/` is **untracked**. Do not stage or commit these unless asked, and if asked,
   review what `git add` picks up first (the tree also has unstaged edits across `preprocessing/`).
-- Known dead code: `server/test.go` (fully commented out), commented blocks in `server/main.go`,
-  the unused `GameHub.Broadcast` channel.
+- Known dead code: `server/test.go` (fully commented out), commented blocks in `server/main.go`.
 
 ## Known gaps worth knowing before you start
 
