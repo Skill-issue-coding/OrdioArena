@@ -28,17 +28,32 @@ working in that area**, do not re-derive from source:
 - `frontend/README.md`: route tree, file-based routing conventions, Next.js → Vite port mapping.
 - `preprocessing/README.md`: stage-by-stage pipeline, `shared.py` exports, data sources.
 
+> **A full rewrite of `server/` and `frontend/` is underway.** Everything below describes the code
+> as it exists today, which is still the code you are working in, but it is being replaced, and
+> two of its properties (single-instance deployment, no reconnect) are the reason. Read
+> `docs/roadmap.md` before starting anything structural, and check whether the work is already a
+> stage there. `preprocessing/` is not affected.
+
 Planning / analysis documents live in `docs/`, indexed by `docs/README.md`. They are specs and
 decisions, **not** status: what is done, in progress or dropped is tracked in
 [GitHub issues](https://github.com/Skill-issue-coding/OrdioArena/issues) and the
-[roadmap board](https://github.com/orgs/Skill-issue-coding/projects/1), grouped into milestones
-M1 Reconnect / M2 Game feel / M3 Foundations / M4 New modes.
+[roadmap board](https://github.com/orgs/Skill-issue-coding/projects/2), grouped into stage
+milestones S0–S10.
 
-- `docs/design/0001-reconnect.md`: reconnect / session-resume design (issue #17).
+- `docs/roadmap.md`: the rewrite's eleven stages, with exit criteria. Start here.
+- `docs/design/0003-rewrite-architecture.md`: why the rewrite, and the locked decisions —
+  lobby-affinity routing, seats and epochs, generated protocol, mode registry.
+- `docs/design/S0-*.md` … `S10-*.md`: one spec per stage, what gets built, the signatures that pin
+  its shape, the decisions taken there, its issues, its open questions. **Read the stage spec
+  before picking up any issue in that milestone.**
 - `docs/design/0002-word-selection.md`: target and vocabulary selection, largely implemented.
 - `docs/decisions/anti-match-tuning.md`: scoring and balance levers with trade-offs, options still
-  open (issue #25).
-- `docs/notes/architecture-review.md`: architecture review findings, 2026-07-02 (issue #30).
+  open (feeds S7, issue #89).
+
+`docs/design/0001-reconnect.md` and `docs/notes/architecture-review.md` described the server being
+replaced and have been **deleted**, superseded by 0003 and the stage specs. They are in git
+history if the reasoning is ever needed.
+
 - `docs/notes/code-vs-plan-audit.md`: which planned preprocessing work is actually in the code,
   with file:line evidence. Check this before trusting a plan document's claim about a gap.
 - `docs/notes/preprocessing-w2v-migration.md`: Wikipedia2Vec training and the completed migration.
@@ -64,10 +79,10 @@ npm run format                     # prettier --write
 python stage_1.py … stage_7.py     # stage_8 optional, stage_9 enriches targets
 ```
 
-There is no test suite yet (`docs/notes/architecture-review.md` §7, issue #32). If you add Go code
-with non-trivial logic, add a `_test.go`: game logic is already dependency-injectable (dict
-pointer, outputs channel, `onDone`). Anything touching goroutines or timers must be checked with
-`go test -race`.
+There is no test suite yet; the rewrite gets CI with `go test -race` in S0 (issue #53). If you add
+Go code with non-trivial logic, add a `_test.go`: game logic is already dependency-injectable
+(dict pointer, outputs channel, `onDone`). Anything touching goroutines or timers must be checked
+with `go test -race`.
 
 ### Environment variables
 
@@ -124,9 +139,9 @@ There is no codegen. A mismatch fails silently at runtime, not at compile time.
 
 **4. Adding a game mode touches 4+ switch sites.** `SetMode`, `ModeSettings`, `ApplySetting`, game
 construction in the `StartGameRequests` case, plus a settings field on `GameLobby`. `contexto` and
-`synonym` are still unimplemented; `docs/notes/architecture-review.md` §3 proposes a mode registry
-to pay this cost once (issue #31). Do that refactor before implementing the third and fourth modes
-(issues #38, #39).
+`synonym` are still unimplemented. A mode registry pays this cost once —
+`docs/design/S6-game-engine-registry.md` specifies it. The rewrite does it in S6 (issue #83) and the two missing modes land after
+it in S10 (issues #103, #104), do not implement them against the current switch sites.
 
 **5. All timers are server-authoritative.** Phase events carry `start_time`, `ready_time`
 (= start + 2 s `SYNC_DELAY`) and `end_time` as Unix millisecond timestamps. Clients render
@@ -152,9 +167,14 @@ code path that creates a lobby from a client-supplied code**, that property is w
 misrouted player on an error screen instead of in a split-brain room.
 
 **Deploys kill in-flight games.** Restarting drops every lobby. Reconnect does not help here;
-surviving a server restart is an explicit non-goal in `docs/design/0001-reconnect.md`.
+surviving a restart is an explicit non-goal, see `docs/design/0003-rewrite-architecture.md`
+§Locked decisions, item 5.
 
-### If this ever changes
+### This is changing
+
+The rewrite lifts the constraint, and the notes below are what it implements. See
+`docs/design/0003-rewrite-architecture.md` §1 for the design and S2 for the stage. Until cutover,
+the constraint above is still real: do not deploy the current server to more than one instance.
 
 - **Shard by lobby code, not by user.** Standard LB session affinity (sticky cookie, sticky IP)
   pins a _user_ to an instance, but a lobby is shared by 3-12 users who would each be pinned
@@ -162,7 +182,7 @@ surviving a server restart is an explicit non-goal in `docs/design/0001-reconnec
   architecture: one lobby is already one goroutine with no cross-lobby state. Consistent hashing
   on the room code, which means the code must be visible to the router (`/ws/game/{code}` rather
   than `/ws/game`).
-- **Keep the session token opaque and instance-agnostic** when it is built (issue #19). No node
+- **Keep the session token opaque and instance-agnostic** when it is built (S3, issue #64). No node
   id, no shard hint. A stateless token stays valid across any topology; one that encodes placement
   turns every future scaling decision into a token-format migration.
 - **The signing secret must be identical on every instance**, that is what lets any instance
@@ -236,23 +256,23 @@ All four are Swedish word modes scored by cosine distance over the same vectors.
 3–12 players (`MIN_NUM_PLAYERS_TO_START_GAME`, `MAXIMUM_LOBBY_SIZE`). Full settings tables with
 min/max ranges are in `server/README.md`.
 
-**Hitta Impostern (`impostor`)** — implemented. Normal players get a secret word; impostors get a
+**Hitta Impostern (`impostor`)**, implemented. Normal players get a secret word; impostors get a
 semantically similar but different word drawn from that target's `impostor_candidates`. Phase
 chain: show_word (8 s) → input (turn-based, one player at a time) → discussion → vote →
 intermediate (5 s) → loop or result. Players vote someone out each cycle; impostors win when
 `impostors >= normals`, normals win when all impostors are gone. Settings: impostor count 1–4,
 input 10–60 s (default 30), discussion 30–150 s (default 45), vote 10–60 s (default 30).
 
-**Anti-matchning (`anti_match`)** — implemented. Every player submits a word related to the target.
+**Anti-matchning (`anti_match`)**, implemented. Every player submits a word related to the target.
 Exact duplicates all score 0. Unique words score `max(0, 100 − cosine_distance × 100)`. A new
 target is picked each round; the round ends early once everyone has submitted. Settings: input
 10–60 s (default 20), rounds 1–5 (default 3).
 
-**Kontext Strid (`contexto_battle`)** — settings only, `Run` not implemented. Competitive Contexto:
+**Kontext Strid (`contexto_battle`)**, settings only, `Run` not implemented. Competitive Contexto:
 players guess continuously to approach a hidden target; closest last guess when the timer expires
 wins the round. Settings: word type (Vanliga/Kreativa), round 60–600 s, rounds 1–5.
 
-**Synonym Duell (`synonym_duel`)** — settings only, `Run` not implemented. Each round everyone
+**Synonym Duell (`synonym_duel`)**, settings only, `Run` not implemented. Each round everyone
 submits a synonym for the target; the submission semantically _furthest_ from it is eliminated.
 Last player standing wins. Settings: word type (Vanliga/Kreativa), round 10–60 s, rounds 1–5.
 
@@ -290,35 +310,42 @@ local changes a two or three line plan is enough. For anything large (new game m
 touching the goroutine topology, refactors across directories) the plan is mandatory and must call
 out which architecture invariants above it interacts with. Wait for agreement before implementing.
 
-**2. Pseudocode, not full code.** Show structure, not a finished patch to accept blindly. Give
+**2. Pseudocode/abstract code, not full code.** Show structure, not a finished patch to accept blindly. Give
 signatures, control flow, channel and phase wiring, struct fields, and the tricky lines verbatim
-(a cosine comparison, a `select` with its `default`, an exact `EventType` string) — but leave the
+(a cosine comparison, a `select` with its `default`, an exact `EventType` string), but leave the
 routine body work as prose or `// ...` for the developer to write. Exceptions, only when asked
 explicitly: the developer says "write it" / "apply it", or the change is mechanical (rename,
 formatting, moving a block, a config value).
 
 ## Current repo state (read before touching git)
 
-- Working branch is `vite+react-port`. Main branch is `main`.
-- The old Next.js client at `client/` has been **deleted on disk but the deletions are unstaged**,
-  and `frontend/` is **untracked**. Do not stage or commit these unless asked, and if asked,
-  review what `git add` picks up first (the tree also has unstaged edits across `preprocessing/`).
+- Working branch is `full-rework`. Main branch is `main`.
+- The rewrite builds in **new directories** (`backend-v2/`, `web/`) beside the current ones. The old
+  `server/` and `frontend/` stay in place and readable until the S8 cutover deletes them.
+- `backend-v2/` currently holds the S0 scaffold: package layout and doc comments, no behaviour.
+  Its `go.mod` declares the _post-cutover_ module path
+  (`github.com/Skill-issue-coding/OrdioArena/backend`) so the S8 rename touches no imports.
+- At cutover `server/` disappears, which moves `server/wordfiles/` to `backend/wordfiles/` and
+  changes three hardcoded paths in `preprocessing/`. That is the rewrite's only Python footprint.
+- `scripts/` is git-ignored: it holds the GitHub seeder (labels, milestones, issue bodies, board),
+  not application code.
 - Known dead code: `server/test.go` (fully commented out), commented blocks in `server/main.go`.
+  Not worth fixing, it is deleted at cutover.
 
 ## Known gaps worth knowing before you start
 
-Full list in `docs/notes/architecture-review.md`; each is tracked as an issue. The ones most likely
-to bite:
+Each of these is now owned by a rewrite stage rather than fixed in place, do not patch these in the current code unless something is on fire. The ones most
+likely to bite:
 
 1. **No reconnect.** A browser refresh creates a new `UserId` and drops the player from their
-   lobby; mid-game this eliminates them. Design in `docs/design/0001-reconnect.md` (issue #17).
+   lobby; mid-game this eliminates them. Replaced by the seat model in S4.
 2. **Data races on `Client` fields.** `client.Lobby` and `client.Profile` are written from up to
    three goroutines without synchronisation. Run with `-race` before trusting concurrency changes.
-   Fixed as part of the seat model, not separately (issue #18).
+   Fixed by construction in the S4 seat model (issue #70), not by adding mutexes here.
 3. **`AntiMatchGame` ignores `playerLeft`**: the channel case is commented out, so a mid-game
-   disconnect leaves a slot that blocks the early-advance check (issue #22).
+   disconnect leaves a slot that blocks the early-advance check (S7, issue #90).
 4. **`CheckOrigin` returns `true`** for all WebSocket origins (`server/handlers/websocket.go`).
-   Must be restricted before production (issue #24).
+   Must be restricted before production (S4, issue #68).
 5. **Anti-Match never applies `matchThreshold()`**: the per-target "too random" cutoff is loaded
    from `targets.json` but unused in scoring. See `docs/decisions/anti-match-tuning.md` §2
-   (issue #26).
+   (S7, issue #89).

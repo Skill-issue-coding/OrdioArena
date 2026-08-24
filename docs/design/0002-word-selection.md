@@ -1,19 +1,19 @@
 # Word Selection Improvement Plan
 
-> **Status:** Largely implemented · **Tracking:** [#27](https://github.com/Skill-issue-coding/OrdioArena/issues/27), [#28](https://github.com/Skill-issue-coding/OrdioArena/issues/28) · **Updated:** 2026-08-20
+> **Status:** Largely implemented · **Tracking:** preprocessing backlog, not on rewrite roadmap · **Updated:** 2026-08-24
 >
-> Split out of the old `preprocessing/plan.md`; the completed Wikipedia2Vec migration half is now
+> Split from old `preprocessing/plan.md`; done Wikipedia2Vec migration half now
 > [`../notes/preprocessing-w2v-migration.md`](../notes/preprocessing-w2v-migration.md).
 >
-> **Most of this document describes work that has since been done.** Verified against live code on
-> 2026-08-20: Problem A Fix 1 (Swedish pageviews gate) and Fix 2 (notability threshold) are applied
-> in `stage_7.py:326-345`; Fix 4 (celebrity birth-date cap) is removed; Problem B Fix 1
-> (`DOMAIN_VOCAB_EXPANSIONS`) is injected in `stage_4.py:153-177`; Fix 4 (rejected-word logging)
-> exists at `server/game/antimatch.go:391`.
+> **Most of doc describe work already done.** Verified vs live code
+> 2026-08-20: Problem A Fix 1 (Swedish pageviews gate) + Fix 2 (notability threshold) applied
+> in `stage_7.py:326-345`; Fix 4 (celebrity birth-date cap) removed; Problem B Fix 1
+> (`DOMAIN_VOCAB_EXPANSIONS`) injected in `stage_4.py:153-177`; Fix 4 (rejected-word logging)
+> at `server/game/antimatch.go:391`.
 >
-> Still open: Fix 3 of Problem A, the consumer/B2B company SPARQL split, `swedish_companies.sparql`
-> still runs alongside the two newer queries (`shared.py:54-58`). Read the audit in
-> [`../notes/code-vs-plan-audit.md`](../notes/code-vs-plan-audit.md) before acting on anything here.
+> Still open: Problem A Fix 3, consumer/B2B company SPARQL split, `swedish_companies.sparql`
+> still run beside two newer queries (`shared.py:54-58`). Read audit in
+> [`../notes/code-vs-plan-audit.md`](../notes/code-vs-plan-audit.md) before act here.
 
 ---
 
@@ -21,53 +21,52 @@
 
 ## Background: Two Distinct Problems
 
-Playtesting exposed two independent failures. Fixing them requires different interventions.
+Playtest expose two independent failures. Need different fixes.
 
-**Problem A , Unknown entity as target:** A celebrity, company, or show appears as a
-game word but players have never heard of it. Caused by weak notability gating in
-stage_7 (notability_score is computed but never used as a filter).
+**Problem A , Unknown entity as target:** celebrity, company, or show appear as
+game word but players never heard of it. Cause: weak notability gating in
+stage_7 (notability_score computed but never used as filter).
 
-**Problem B , Missing associate vocabulary:** The player knows the target and types
-an obvious related word ("aktier" for BlackRock, "atlet" for an athlete), but the
-backend rejects it as unknown. Caused by the general vocabulary stage (stage_4) being
-too conservative: Kelly + Korp ≥ 1000 filters out domain-specific but common Swedish
-words that are not in Kelly's core ~8,000-word list.
+**Problem B , Missing associate vocabulary:** player know target, type
+obvious related word ("aktier" for BlackRock, "atlet" for athlete), but
+backend reject as unknown. Cause: general vocabulary stage (stage_4)
+too conservative: Kelly + Korp ≥ 1000 filter out domain-specific but common Swedish
+words absent from Kelly core ~8,000-word list.
 
-Problem B causes worse UX than Problem A. A slightly obscure target is frustrating;
-a correct guess being rejected breaks trust in the game.
+Problem B worse UX than Problem A. Obscure target = annoying;
+correct guess rejected = break trust in game.
 
 ---
 
 ## Critique of the Multi-Signal Scoring Plan
 
-The ChatGPT-authored plan is architecturally correct for media (TV shows, films).
-Apply the multi-signal principle to all categories but note its gaps.
+ChatGPT plan architecturally correct for media (TV shows, films).
+Apply multi-signal principle to all categories but note gaps.
 
 **What works:**
 
-- Swedish Wikipedia as primary filter is the right proxy: if Swedish-language editors
-  considered something notable enough to write an article, Swedish readers likely
-  recognize it.
-- Swedish TV presence (SVT, TV4, TV3…) is a strong real-world exposure signal for
-  media specifically.
-- Adversarial LLM review is a cheap way to surface systematic bias (recency, age-group,
-  international) that weighted scoring misses.
-- Multi-signal composite avoids brittleness: one noisy metric can't dominate.
+- Swedish Wikipedia as primary filter = right proxy: if Swedish editors
+  wrote article, Swedish readers likely recognize it.
+- Swedish TV presence (SVT, TV4, TV3…) strong real-world exposure signal for
+  media only.
+- Adversarial LLM review cheap way to surface systematic bias (recency, age-group,
+  international) that weighted scoring miss.
+- Multi-signal composite avoid brittleness: one noisy metric cannot dominate.
 
-**What it misses:**
+**What it miss:**
 
-- Problem B entirely. The plan treats vocabulary coverage as solved. It is not.
-- Sitelinks are a poor proxy for company recognizability. BlackRock has ~80 sitelinks
-  (internationally notable) but is essentially unknown to Swedish consumers. The plan
-  does not distinguish international notability from Swedish consumer awareness.
-- Stages 6–8 (adversarial loop, multi-persona consensus, stability testing) are
-  expensive, non-deterministic, and hard to version. Useful for an initial calibration
-  run; bad as a recurring pipeline step. Run once, encode results as explicit
-  threshold overrides, do not automate the loop.
-- No minimum threshold defined. The plan produces a ranked list but never says "below
-  this score, exclude from the game." Without a cutoff, unknown entities still slip
+- Problem B entirely. Plan treat vocabulary coverage as solved. Not solved.
+- Sitelinks poor proxy for company recognizability. BlackRock ~80 sitelinks
+  (international notable) but unknown to Swedish consumers. Plan
+  not distinguish international notability from Swedish consumer awareness.
+- Stages 6–8 (adversarial loop, multi-persona consensus, stability testing)
+  expensive, non-deterministic, hard to version. Good for initial calibration
+  run; bad as recurring pipeline step. Run once, encode results as explicit
+  threshold overrides, no automate loop.
+- No minimum threshold defined. Plan give ranked list but never say "below
+  this score, exclude from game." No cutoff = unknown entities still slip
   through.
-- Swedish pageviews cited as the top signal but with no implementation path.
+- Swedish pageviews cited as top signal but no implementation path.
 
 ---
 
@@ -75,34 +74,34 @@ Apply the multi-signal principle to all categories but note its gaps.
 
 ### Root cause
 
-`stage_7.py` → `collect_entity_targets()` includes any entity that has wiki context
-and is in `vocab.json`. The `notability_score` is attached to the output JSON but
-**never used as a filter**. The effective threshold is 0.
+`stage_7.py` → `collect_entity_targets()` include any entity with wiki context
+and in `vocab.json`. `notability_score` attached to output JSON but
+**never used as filter**. Effective threshold = 0.
 
 ### Fix 1: Swedish Wikipedia pageviews gate (new enrichment step)
 
-Swedish pageviews are the single strongest signal that Swedish readers care about an
-entity. Wikimedia provides this for free:
+Swedish pageviews = strongest signal Swedish readers care about
+entity. Wikimedia give free:
 
 ```text
 GET https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/sv.wikipedia/
     all-access/all-agents/{ARTICLE_TITLE}/monthly/{YYYYMM}/{YYYYMM}
 ```
 
-Add to `stage_3.py` or as a new `stage_3b.py`:
+Add to `stage_3.py` or new `stage_3b.py`:
 
-- For every entity with a Swedish Wikipedia article (already fetched in stage_2),
-  call the pageviews API for the trailing 12 months.
-- Compute `sv_pageviews_monthly_avg` and store it in the enriched CSV.
-- Rate-limit to 100 req/min (Wikimedia's documented limit).
-- Cache responses to disk , do not re-fetch on reruns.
+- Every entity with Swedish Wikipedia article (already fetched in stage_2):
+  call pageviews API for trailing 12 months.
+- Compute `sv_pageviews_monthly_avg`, store in enriched CSV.
+- Rate-limit 100 req/min (Wikimedia documented limit).
+- Cache responses to disk , no re-fetch on rerun.
 
-Suggested minimum: `sv_pageviews_monthly_avg >= 300`. This rejects genuine stubs
-while keeping well-known entities. Tune after one playtest cycle.
+Suggested minimum: `sv_pageviews_monthly_avg >= 300`. Reject genuine stubs,
+keep well-known entities. Tune after one playtest cycle.
 
 ### Fix 2: Notability threshold in stage_7
 
-In `collect_entity_targets()`, apply the score as a gate, not just a label:
+In `collect_entity_targets()`, apply score as gate, not label:
 
 ```python
 MIN_NOTABILITY_BY_CAT = {
@@ -120,13 +119,13 @@ if score > 0 and score < threshold:
     continue  # known to be obscure , skip
 ```
 
-Entities with `score == 0` (no sitelinks, not in Maktbarometern) should also be
-skipped unless they pass the pageviews gate from Fix 1.
+Entities with `score == 0` (no sitelinks, not in Maktbarometern) also
+skipped unless pass pageviews gate from Fix 1.
 
 ### Fix 3: Company SPARQL , separate consumer from B2B
 
-The current `swedish_companies.sparql` includes enterprise/B2B entity types
-(Q6881511, Q891723) alongside consumer brands. Split into two queries:
+Current `swedish_companies.sparql` include enterprise/B2B entity types
+(Q6881511, Q891723) beside consumer brands. Split into two queries:
 
 **`swedish_consumer_companies.sparql`** , high weight, no country restriction:
 
@@ -151,24 +150,24 @@ FILTER(?sitelinks > 20)
 ?company wdt:P17 wd:Q34 .        # country: Sweden
 ```
 
-OMX-listed Swedish companies (Volvo, Ericsson, H&M, Handelsbanken) are household
-names in Sweden. Use these as guaranteed inclusions, bypassing score thresholds.
+OMX-listed Swedish companies (Volvo, Ericsson, H&M, Handelsbanken) household
+names in Sweden. Use as guaranteed inclusions, bypass score thresholds.
 
 **`swedish_b2b_companies.sparql`** , high notability threshold required:
 
 - Keep private equity, asset management, consultancy types here.
-- Only include if `notability_score > 0.20` AND `sv_pageviews > 1000`.
+- Include only if `notability_score > 0.20` AND `sv_pageviews > 1000`.
 - BlackRock: US HQ, asset management, ~50 Swedish pageviews/month → excluded.
 
 ### Fix 4: Celebrity SPARQL , age range and career stage
 
-The current `swedish_celebrities.sparql` filters `sitelinks > 3 && < 60`. The
-upper cap of 60 is intended to exclude international megastars but it inadvertently
-excludes major Swedish celebrities (Robyn, Zlatan, Avicii all exceed 60 sitelinks).
+Current `swedish_celebrities.sparql` filter `sitelinks > 3 && < 60`.
+Upper cap 60 meant to exclude international megastars but also
+exclude major Swedish celebrities (Robyn, Zlatan, Avicii all exceed 60 sitelinks).
 
-Remove the upper cap. Instead gate by Swedish pageviews (Fix 1). An athlete born
-after 1990 with 8 sitelinks and 100 monthly Swedish pageviews is not a good target;
-Zlatan with 300+ sitelinks and 50,000 monthly pageviews obviously is.
+Remove upper cap. Gate by Swedish pageviews instead (Fix 1). Athlete born
+after 1990 with 8 sitelinks and 100 monthly Swedish pageviews = bad target;
+Zlatan with 300+ sitelinks and 50,000 monthly pageviews = good.
 
 ---
 
@@ -176,13 +175,13 @@ Zlatan with 300+ sitelinks and 50,000 monthly pageviews obviously is.
 
 ### Root cause (Problem B)
 
-Stage_4 general vocabulary requires `in_kelly=True AND Korp freq ≥ 1000`. Kelly is
-an ~8,000-word pedagogical core vocabulary that prioritizes breadth over domain depth.
-Domain-specific but genuinely common Swedish words , financial terms, sports terms,
-industry jargon , are often absent from Kelly even though every adult Swede knows them.
+Stage_4 general vocabulary require `in_kelly=True AND Korp freq ≥ 1000`. Kelly =
+~8,000-word pedagogical core vocabulary, breadth over domain depth.
+Domain-specific but common Swedish words , finance, sports, industry jargon , often
+absent from Kelly even though every adult Swede know them.
 
-When the backend rejects "aktier", "kapital", "atlet", or "idrottsman", the player
-reads it as a bug. It is not a scoring problem; it is a vocabulary coverage problem.
+Backend reject "aktier", "kapital", "atlet", "idrottsman" → player read as bug.
+Not scoring problem; vocabulary coverage problem.
 
 ### Fix 1: Domain vocabulary expansions in shared.py
 
@@ -218,7 +217,7 @@ DOMAIN_VOCAB_KORP_MIN = 50   # much lower than DEFAULT_KORP_FREQ=300
 
 ### Fix 2: Inject domain words in stage_4 or stage_7
 
-In `stage_4.py`, after the standard Korp/Kelly filter, append domain expansion words:
+In `stage_4.py`, after standard Korp/Kelly filter, append domain expansion words:
 
 ```python
 from shared import DOMAIN_VOCAB_EXPANSIONS, DOMAIN_VOCAB_KORP_MIN
@@ -240,12 +239,12 @@ df_extras = pd.DataFrame(domain_extras)
 df_filtered = pd.concat([df_filtered, df_extras], ignore_index=True)
 ```
 
-Words that fail the Korp minimum (< 50) are not common enough in Swedish text to
-have a reliable vector , skip them rather than adding noise.
+Words failing Korp minimum (< 50) too rare in Swedish text for
+reliable vector , skip, no add noise.
 
 ### Fix 3: Vocabulary gap report in stage_5
 
-After building the vocabulary in stage_5, print a gap report:
+After build vocabulary in stage_5, print gap report:
 
 ```python
 from shared import DOMAIN_VOCAB_EXPANSIONS
@@ -262,29 +261,29 @@ if missing_by_cat:
         log.warning(f"  [{cat}]: {words}")
 ```
 
-If a word has no vector, it cannot be added regardless of thresholds. These need
-Phase 2 (supplementary corpus) to resolve.
+Word with no vector cannot be added, any threshold. Need
+Phase 2 (supplementary corpus) to fix.
 
 ### Fix 4: Rejected-word feedback loop in Go
 
-In the Go backend, when a player submits a word not found in vocab, log it:
+In Go backend, when player submit word not in vocab, log it:
 
 ```go
 // In the guess handler, after IsValid() returns false:
 log.Printf("REJECTED_GUESS: %s", word)
 ```
 
-Pipe this to a file. After playtesting, feed `rejected_words.log` through stage_4
-with `DOMAIN_VOCAB_KORP_MIN` to see which are genuinely common. Add frequent
-rejectees to `DOMAIN_VOCAB_EXPANSIONS`. This creates a player-driven vocabulary
-improvement loop that costs nothing.
+Pipe to file. After playtest, feed `rejected_words.log` through stage_4
+with `DOMAIN_VOCAB_KORP_MIN` to see which genuinely common. Add frequent
+rejectees to `DOMAIN_VOCAB_EXPANSIONS`. Player-driven vocabulary
+improvement loop, cost nothing.
 
 ---
 
 ## Applying the Multi-Signal Scoring Plan to All Categories
 
-Adapt the weighted score formula per entity category. Run this in stage_7 to
-produce `notability_score` (already the field name in `targets.json`).
+Adapt weighted score formula per entity category. Run in stage_7 to
+produce `notability_score` (already field name in `targets.json`).
 
 ### Celebrity
 
@@ -320,8 +319,8 @@ score = (
 )
 ```
 
-Minimum score to qualify as a target: **0.08** across all categories as a starting
-point. Tune after first post-fix playtest session.
+Minimum score to qualify as target: **0.08** all categories, starting
+point. Tune after first post-fix playtest.
 
 ---
 
@@ -329,26 +328,26 @@ point. Tune after first post-fix playtest session.
 
 | Fix                                       | Where                                        | Complexity | Impact                                                |
 | ----------------------------------------- | -------------------------------------------- | ---------- | ----------------------------------------------------- |
-| Domain vocab expansions                   | `shared.py` + `stage_4.py`                   | Low        | **High** , directly fixes aktier/atlet                |
-| Notability threshold in `stage_7`         | `stage_7.py`                                 | Low        | **High** , stops unknown targets immediately          |
-| Company SPARQL split (consumer vs B2B)    | `seeding/queries/`                           | Low        | **High** , removes BlackRock-class mistakes at source |
-| Remove sitelinks upper cap on celebrities | `seeding/queries/swedish_celebrities.sparql` | Low        | High , stops excluding Zlatan/Robyn                   |
+| Domain vocab expansions                   | `shared.py` + `stage_4.py`                   | Low        | **High** , fix aktier/atlet directly                  |
+| Notability threshold in `stage_7`         | `stage_7.py`                                 | Low        | **High** , stop unknown targets now                   |
+| Company SPARQL split (consumer vs B2B)    | `seeding/queries/`                           | Low        | **High** , kill BlackRock-class mistakes at source    |
+| Remove sitelinks upper cap on celebrities | `seeding/queries/swedish_celebrities.sparql` | Low        | High , stop excluding Zlatan/Robyn                    |
 | Swedish pageviews gate                    | `stage_3.py` or `stage_3b.py`                | Medium     | High , strongest long-term signal                     |
 | OMX-listed query                          | `seeding/queries/`                           | Low        | Medium , guaranteed quality floor for companies       |
 | Rejected-word log in Go                   | `main.go` or handler                         | Low        | Medium , free feedback loop                           |
-| Vocabulary gap report                     | `stage_5.py`                                 | Low        | Medium , surfaces Phase 2 needs                       |
+| Vocabulary gap report                     | `stage_5.py`                                 | Low        | Medium , surface Phase 2 needs                        |
 
-Do domain vocab expansions and notability threshold first , they are one-day changes
-that directly fix both complaints without re-running the embedding model.
+Do domain vocab expansions + notability threshold first , one-day changes,
+fix both complaints, no re-run embedding model.
 
 ---
 
 ## What to Skip from the ChatGPT Plan
 
-- **Consensus multi-persona reviewers (stages 7–8):** Useful for an initial one-off
-  calibration. Do not automate. The signal is noisy and expensive; encode conclusions
+- **Consensus multi-persona reviewers (stages 7–8):** good for initial one-off
+  calibration. No automate. Signal noisy and expensive; encode conclusions
   as explicit threshold overrides instead.
-- **Stability testing (stage 9):** This is QA, not ranking. Run it manually after
-  major pipeline changes, not as a pipeline stage.
-- **TMDB integration:** Only worth adding if you find that Swedish productions score
-  too low relative to international ones. Do not add data sources preemptively.
+- **Stability testing (stage 9):** QA, not ranking. Run manually after
+  major pipeline changes, not as pipeline stage.
+- **TMDB integration:** worth adding only if Swedish productions score
+  too low vs international. No add data sources preemptively.

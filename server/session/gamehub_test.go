@@ -359,7 +359,7 @@ func testLookupSession(t *testing.T) {
 			t.Fatalf("mutating the returned entry reached the registry: %q", again.Profile.Username)
 		}
 		// Note for whoever reads this later: Client is deliberately still the
-		// same pointer. Only Profile had to be decoupled — resolveIdentity hands
+		// same pointer. Only Profile had to be decoupled, resolveIdentity hands
 		// &entry.Profile to a new Client, and a shared one would alias every
 		// player onto one profile struct.
 	})

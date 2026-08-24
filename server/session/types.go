@@ -248,7 +248,7 @@ type SessionEntry struct {
 	// is connected under it. Guarded by SessionsMutex rather than owned by
 	// hub.Run, the same carve-out as LobbiesMutex: the WS-upgrade handler must
 	// be able to displace a previous tab before any Client exists to register.
-	// It is written only under the mutex and read only to displace — never
+	// It is written only under the mutex and read only to displace, never
 	// dereferenced for state, which is what keeps it from becoming a second
 	// owner of client lifecycle.
 	Client *Client

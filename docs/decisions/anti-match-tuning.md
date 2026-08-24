@@ -1,25 +1,16 @@
-> **Status:** Options menu, decisions pending · **Tracking:** [#25](https://github.com/Skill-issue-coding/OrdioArena/issues/25) · **Updated:** 2026-08-20
+> **Status:** Options menu, decisions pending · **Tracking:** feeds S7, [#89](https://github.com/Skill-issue-coding/OrdioArena/issues/89) · **Updated:** 2026-08-24
 >
-> This is a decision document: each section lists options with trade-offs, and most are still
-> **undecided**. Pick an option in the tracking issue before implementing, then record the choice
-> here as a `**Decision:**` line under the relevant section.
+> Decision doc: each section list options + trade-offs. Most **undecided**. Pick option in tracking issue before implement, then record choice here as `**Decision:**` line under section.
 >
-> **Stale sections.** §4a claims the notability floor is never applied and §5a claims the domain
-> vocabulary expansions are unused. Both were true when written and are **no longer true**, see
-> [`../notes/code-vs-plan-audit.md`](../notes/code-vs-plan-audit.md). The scoring sections (§1, §2,
-> §3, §7) are still accurate and still open.
+> **Stale sections.** §4a claim notability floor never applied. §5a claim domain vocab expansions unused. Both true when written, **no longer true**, see [`../notes/code-vs-plan-audit.md`](../notes/code-vs-plan-audit.md). Scoring sections (§1, §2, §3, §7) still accurate, still open.
 
 ---
 
 # Game Design & Scoring Tuning, Options, Trade-offs, and Effects
 
-Scope: design/balance tuning for the word modes (primarily **Anti-Match**, with
-notes on Impostor), grounded in the actual Go scoring code and the Wikipedia2Vec
-preprocessing pipeline. For each lever: **what it is**, **pros**, **cons**,
-**performance impact**, and **game-feel impact**.
+Scope: design/balance tuning for word modes (mainly **Anti-Match**, some Impostor notes), grounded in real Go scoring code + Wikipedia2Vec preprocessing pipeline. Per lever: **what it is**, **pros**, **cons**, **performance impact**, **game-feel impact**.
 
-This is a thinking document, not a spec. Nothing here is implemented unless
-stated. Numbers are starting points to playtest, not final values.
+Thinking doc, not spec. Nothing implemented unless stated. Numbers = playtest starting points, not final.
 
 ---
 
@@ -37,9 +28,7 @@ stated. Numbers are starting points to playtest, not final values.
 | Vocabulary coverage      | preprocessing `stage_4.py`                          | `in_kelly AND korp_freq ≥ 1000`                                    |
 | Default timers/rounds    | `game/defaultSettings.go`                           | Anti-Match: 20s input, 3 rounds                                    |
 
-Two of these, the unused `matchThreshold()` and the unused notability gate —
-are the highest-leverage fixes because the machinery already exists; it just
-isn't wired in.
+Two highest-leverage fixes: unused `matchThreshold()` + unused notability gate. Machinery exist already, just not wired.
 
 ---
 
@@ -47,104 +36,72 @@ isn't wired in.
 
 ### 1a. Current: linear `100 * (1 - distance)`
 
-Cosine distance ∈ [0, 2]; for related words it sits roughly in [0.3, 0.8], so
-scores cluster in **20–70** and rarely exceed ~50 (observed: best word of a whole
-game was `bank`→`Citibank` = 48). The space above 50 is almost never reached,
-so the visible range is compressed into the lower half.
+Cosine distance ∈ [0, 2]. Related words sit ~[0.3, 0.8], so scores cluster **20–70**, rarely above ~50 (observed: best word whole game = `bank`→`Citibank` = 48). Space above 50 near-unreachable, visible range squashed into lower half.
 
-**Pros:** trivial, predictable, monotonic, zero tuning data needed.
-**Cons:** feels punishing and flat, players see 0/11/32/48 and can't tell a
-"good" answer from a "lucky" one; the headroom (50–100) is wasted.
-**Performance:** one multiply; negligible.
-**Game feel:** the core complaint. Scores look harsh and samey.
+**Pros:** trivial, predictable, monotonic, zero tuning data.
+**Cons:** feel punishing + flat. Players see 0/11/32/48, can't tell "good" from "lucky". Headroom 50–100 wasted.
+**Performance:** one multiply, negligible.
+**Game feel:** core complaint. Scores look harsh + samey.
 
 ### 1b. Rescale into the usable band (cheap win)
 
-Map the _realistic_ distance band to the full 0–100 range instead of the
-theoretical one. E.g. treat `dist = 0.30` as ~100 and `dist = matchThreshold`
-as ~0, linearly between:
+Map _realistic_ distance band to full 0–100 instead of theoretical. E.g. `dist = 0.30` → ~100, `dist = matchThreshold` → ~0, linear between:
 
 ```go
 norm = (threshold - dist) / (threshold - bestDist)   // bestDist ≈ 0.30
 score = clamp(0, 100, round(norm * 100))
 ```
 
-**Pros:** uses the whole bar; "good" answers finally feel good; no new data —
-`AntiHiveThreshold` already exists per target.
-**Cons:** needs a sensible `bestDist` floor (per-target via `SimAtRank` is better
-than a global constant); slightly less "honest" about raw similarity.
+**Pros:** use whole bar. Good answers feel good. No new data, `AntiHiveThreshold` exist per target.
+**Cons:** need sane `bestDist` floor (per-target via `SimAtRank` beat global constant). Less "honest" about raw similarity.
 **Performance:** still O(1).
-**Game feel:** large positive. This alone probably resolves "scores feel
-punishing" without touching anything else.
+**Game feel:** big positive. Alone likely fix "scores feel punishing" with no other change.
 
 ### 1c. Non-linear curve (reward the top end)
 
-Apply a curve so the gap between "great" and "good" widens:
+Curve so gap between "great" and "good" widen:
 
-- **Exponential / power:** `score = 100 * norm^0.6` (lifts mid scores), or
-  `^1.5` (punishes all but the best). Pick by desired generosity.
-- **Sigmoid around the threshold:** flat-bad below, flat-great above, steep in
-  the contested middle, makes the "did my word make the cone?" moment dramatic.
+- **Exponential / power:** `score = 100 * norm^0.6` (lift mid), or `^1.5` (punish all but best). Pick by wanted generosity.
+- **Sigmoid around threshold:** flat-bad below, flat-great above, steep in contested middle. Make "did my word make cone?" moment dramatic.
 
-**Pros:** tunable drama; can make near-misses feel close and wins feel earned.
-**Cons:** one more magic constant; easy to over-tune into "everyone gets 90" or
-"everyone gets 10"; must be playtested with real players.
-**Performance:** one `pow`/`exp` per submission per round, trivial at party
-scale (≤12 players).
-**Game feel:** high ceiling, high risk. Do **after** 1b, not instead of it.
+**Pros:** tunable drama. Near-miss feel close, win feel earned.
+**Cons:** one more magic constant. Easy to over-tune into "everyone gets 90" or "everyone gets 10". Need playtest with real players.
+**Performance:** one `pow`/`exp` per submission per round. Trivial at party scale (≤12 players).
+**Game feel:** high ceiling, high risk. Do **after** 1b, not instead.
 
 ### 1d. Rank-based scoring instead of distance-based
 
-Score by the word's **rank** in the target's neighbour list (which `SimAtRank`
-already characterises) rather than raw cosine. "Top-50 neighbour = 100, rank
-500 = 0."
+Score by word **rank** in target neighbour list (which `SimAtRank` already characterise), not raw cosine. "Top-50 neighbour = 100, rank 500 = 0."
 
-**Pros:** automatically calibrated per target, dense neighbourhoods (Fotboll)
-and sparse ones (Avicii) feel consistent, which is exactly why `SimAtRank`
-exists. Removes the "some targets just score low" unfairness.
-**Cons:** needs the full ranking at runtime, or a precomputed interpolation from
-`SimAtRank`. Computing true rank per guess = one dot product against the whole
-vocab (~93k × 300) **per submission**, heavier (see Performance).
-**Performance:** full-vocab rank is ~28M multiply-adds per guess. At ≤12
-players/round that's fine (<10 ms), but it's 1000× the current cost. The cheaper
-path: interpolate rank from the 5 `SimAtRank` checkpoints already loaded, O(1).
-**Game feel:** the most "fair" option; the per-target consistency is the whole
-point of stage 9. Recommended target state, via the interpolation shortcut.
+**Pros:** auto-calibrated per target. Dense neighbourhoods (Fotboll) + sparse (Avicii) feel consistent, exactly why `SimAtRank` exist. Kill "some targets just score low" unfairness.
+**Cons:** need full ranking at runtime, or precomputed interpolation from `SimAtRank`. True rank per guess = one dot product against whole vocab (~93k × 300) **per submission**, heavier (see Performance).
+**Performance:** full-vocab rank ~28M multiply-adds per guess. At ≤12 players/round fine (<10 ms), but 1000× current cost. Cheaper path: interpolate rank from 5 `SimAtRank` checkpoints already loaded, O(1).
+**Game feel:** most "fair" option. Per-target consistency = whole point of stage 9. Recommended target state, via interpolation shortcut.
 
 ---
 
 ## 2. Enforce the "anti-hive" cone (`matchThreshold` is dead code)
 
-Right now any dictionary word scores; `matchThreshold()` is never called. The
-intended mechanic, "words too far from the target are rejected/zeroed as too
-random", does not exist.
+Now any dictionary word score. `matchThreshold()` never called. Intended mechanic, "words too far from target rejected/zeroed as too random", not exist.
 
 ### 2a. Zero-score beyond threshold
 
-If `dist > AntiHiveThreshold`, award 0 (but still record the word).
+If `dist > AntiHiveThreshold`, award 0 (still record word).
 
-**Pros:** restores the designed mechanic; stops "spam any valid word, get
-points"; pairs naturally with 1b's rescale (threshold = the 0 point).
-**Cons:** harsher; a near-miss gets nothing. Per-target threshold quality
-depends on stage 9 enrichment being present (fallback 0.5 is crude).
-**Performance:** one comparison; free.
-**Game feel:** adds stakes ("stay in the cone"), but can frustrate if the
-threshold is too tight. Tune the rank-500 cutoff up/down per playtest.
+**Pros:** restore designed mechanic. Stop "spam any valid word, get points". Pair naturally with 1b rescale (threshold = 0 point).
+**Cons:** harsher, near-miss get nothing. Per-target threshold quality depend on stage 9 enrichment present (fallback 0.5 crude).
+**Performance:** one comparison, free.
+**Game feel:** add stakes ("stay in cone"), but frustrate if threshold too tight. Tune rank-500 cutoff per playtest.
 
 ### 2b. Reject at submit time vs. zero at scoring time
 
-- **Reject at submit** (like the dictionary check): immediate "too unrelated"
-  toast, player retries. Tighter feedback loop.
-- **Zero at scoring:** player commits, learns at reveal.
+- **Reject at submit** (like dictionary check): instant "too unrelated" toast, player retry. Tighter feedback loop.
+- **Zero at scoring:** player commit, learn at reveal.
 
-**Pros (reject):** teaches the cone fast; fewer wasted rounds.
-**Cons (reject):** can feel like the game "argues" with you (see the dictionary
-rejection UX problem in §5); risk of rejecting reasonable words if threshold is
-mis-tuned. **Cons (zero):** silent failure until reveal.
+**Pros (reject):** teach cone fast, fewer wasted rounds.
+**Cons (reject):** game feel like it "argues" with you (see dictionary rejection UX problem in §5). Risk reject reasonable words if threshold mis-tuned. **Cons (zero):** silent failure until reveal.
 **Performance:** identical, O(1).
-**Game feel:** reject = strict/instructive, zero = forgiving/suspenseful. Given the
-existing frustration with dictionary rejections, **zero-at-scoring is the safer
-default**; only reject at submit for _egregiously_ far words (dist ≫ threshold).
+**Game feel:** reject = strict/instructive, zero = forgiving/suspenseful. Given existing frustration with dictionary rejections, **zero-at-scoring safer default**. Reject at submit only for _egregiously_ far words (dist ≫ threshold).
 
 ---
 
@@ -152,161 +109,121 @@ default**; only reject at submit for _egregiously_ far words (dist ≫ threshold
 
 ### 3a. Current: exact-string duplicates → 0
 
-Two players type the identical lemma → both get 0.
+Two players type identical lemma → both get 0.
 
-**Pros:** simple, matches the "be unique" pitch, easy to explain.
-**Cons:** purely lexical. `bil` vs `bilen` resolve to the same lemma (good), but
-`fotboll` vs `boll`, clearly related, are treated as fully distinct and
-both score. The penalty is all-or-nothing and ignores semantics.
-**Performance:** a frequency map; O(players).
-**Game feel:** the "jinx" moment is fun, but near-synonyms slipping through
-undercuts the anti-hivemind fantasy.
+**Pros:** simple, match "be unique" pitch, easy to explain.
+**Cons:** purely lexical. `bil` vs `bilen` → same lemma (good), but `fotboll` vs `boll`, clearly related, treated fully distinct, both score. Penalty all-or-nothing, ignore semantics.
+**Performance:** frequency map, O(players).
+**Game feel:** "jinx" moment fun, but near-synonyms slipping through undercut anti-hivemind fantasy.
 
 ### 3b. Semantic-cluster penalty
 
-Penalise words that are _too close to each other_, not just identical: if two
-submissions are within ε cosine of one another, split or reduce their points.
+Penalise words _too close to each other_, not just identical: if two submissions within ε cosine, split or cut their points.
 
-**Pros:** rewards genuinely original thinking; deepens the core mechanic.
-**Cons:** O(players²) distance checks (trivial at ≤12), but mainly **harder to
-explain** and can feel arbitrary ("why did we both lose points, those aren't the
-same word?"). Needs a visible explanation in the result UI.
-**Performance:** ≤12² = 144 dot products/round; nothing.
-**Game feel:** higher skill ceiling, but raises "the game is judging me"
-risk. Optional/advanced-mode candidate, not a default.
+**Pros:** reward original thinking, deepen core mechanic.
+**Cons:** O(players²) distance checks (trivial at ≤12), but mainly **harder to explain**, can feel arbitrary ("why did we both lose points, those aren't the same word?"). Need visible explanation in result UI.
+**Performance:** ≤12² = 144 dot products/round, nothing.
+**Game feel:** higher skill ceiling, but raise "game is judging me" risk. Optional/advanced-mode candidate, not default.
 
 ### 3c. Graduated duplicate penalty
 
-Instead of 0, split the points among duplicators (e.g. each gets `score / n`).
+Instead of 0, split points among duplicators (e.g. each get `score / n`).
 
-**Pros:** softer; collisions sting but don't fully waste a round; still
-incentivises uniqueness.
-**Cons:** weakens the clean "duplicates = 0" rule players quickly learn.
+**Pros:** softer. Collisions sting but don't waste whole round. Still push uniqueness.
+**Cons:** weaken clean "duplicates = 0" rule players learn fast.
 **Performance:** free.
-**Game feel:** friendlier for casual groups; less punchy. A/B against 3a.
+**Game feel:** friendlier for casual groups, less punchy. A/B against 3a.
 
 ---
 
 ## 4. Target selection & notability (the "obscure target" complaint)
 
-Observed bad targets: `Citibank`, `Glenn Ljungström`, `ThyssenKrupp`. The
-machinery to prevent this exists but is half-used.
+Observed bad targets: `Citibank`, `Glenn Ljungström`, `ThyssenKrupp`. Machinery to prevent exist but half-used.
 
 ### 4a. Actually apply a notability floor (preprocessing `stage_7`)
 
-`notability_score` is computed and stored but never gates inclusion (threshold
-= 0). Add a per-category minimum (the plan suggests 0.05–0.10).
+`notability_score` computed + stored but never gate inclusion (threshold = 0). Add per-category minimum (plan suggest 0.05–0.10).
 
-**Pros:** removes ThyssenKrupp-class targets _at the source_; one-line filter;
-no model retrain.
-**Cons:** shrinks the target pool, if the floor is too high you get repetitive
-targets; sitelinks are a poor proxy for _Swedish_ recognisability (BlackRock has
-many sitelinks, near-zero Swedish awareness). Best paired with the Swedish
-pageviews signal from `../design/0002-word-selection.md` Problem A Fix 1.
-**Performance:** build-time only; runtime unaffected (smaller `targets.json`).
-**Game feel:** big win, fewer "who?" moments. The single highest-impact design
-change, and it's a preprocessing edit, not a code change.
+**Pros:** kill ThyssenKrupp-class targets _at source_. One-line filter. No model retrain.
+**Cons:** shrink target pool, floor too high = repetitive targets. Sitelinks are poor proxy for _Swedish_ recognisability (BlackRock: many sitelinks, near-zero Swedish awareness). Best paired with Swedish pageviews signal from `../design/0002-word-selection.md` Problem A Fix 1.
+**Performance:** build-time only. Runtime unaffected (smaller `targets.json`).
+**Game feel:** big win, fewer "who?" moments. Single highest-impact design change, and it's preprocessing edit not code change.
 
 ### 4b. Tune the runtime power-law weighting
 
-`weight = (notability + 0.1)^2`. The `^2` makes a 1.0 entity ~75× likelier than
-a 0.0 word; the `+0.1` floor keeps obscure ones in play.
+`weight = (notability + 0.1)^2`. `^2` make 1.0 entity ~75× likelier than 0.0 word. `+0.1` floor keep obscure ones in play.
 
 - **Raise exponent (→3):** concentrate harder on famous targets.
-- **Lower epsilon (→0.03):** make obscure targets much rarer without excluding
-  them.
+- **Lower epsilon (→0.03):** make obscure targets much rarer without excluding.
 
-**Pros:** instant difficulty knob, no pipeline rerun (constants in
-`words/util.go`); reversible.
-**Cons:** doesn't _remove_ bad targets, only down-weights them, a 0.0 entity
-can still surface occasionally. Interacts with 4a (do the floor first).
+**Pros:** instant difficulty knob. No pipeline rerun (constants in `words/util.go`). Reversible.
+**Cons:** don't _remove_ bad targets, only down-weight. 0.0 entity can still surface. Interact with 4a (do floor first).
 **Performance:** none.
-**Game feel:** smooth difficulty dial; cheap to experiment with live.
+**Game feel:** smooth difficulty dial, cheap to test live.
 
 ### 4c. Category-aware selection
 
-Weight or rotate by category (companies, celebrities, food, geography…) so a
-session doesn't serve three obscure companies in a row.
+Weight or rotate by category (companies, celebrities, food, geography…) so session don't serve three obscure companies in row.
 
-**Pros:** variety; avoids clustering on a weak category; lets you weight
-crowd-pleasers (food, geography) over B2B firms.
-**Cons:** more selection state; needs category labels surfaced to the picker
-(they exist in `sources.json`). Risk of feeling "on rails."
+**Pros:** variety. Avoid clustering on weak category. Let you weight crowd-pleasers (food, geography) over B2B firms.
+**Cons:** more selection state. Need category labels surfaced to picker (exist in `sources.json`). Risk feel "on rails".
 **Performance:** negligible.
-**Game feel:** better pacing and variety across a multi-round game.
+**Game feel:** better pacing + variety across multi-round game.
 
 ### 4d. Difficulty setting (host-controlled)
 
-Expose an easy/normal/hard toggle that maps to a notability floor + exponent.
+Expose easy/normal/hard toggle mapping to notability floor + exponent.
 
-**Pros:** lets groups self-select; "hard" can keep the obscure targets some
-players enjoy; future-proofs the tuning.
-**Cons:** new setting to surface in lobby UI + plumb through
-`AntiMatchSettings`; more QA surface.
+**Pros:** groups self-select. "Hard" keep obscure targets some players enjoy. Future-proof tuning.
+**Cons:** new setting in lobby UI + plumb through `AntiMatchSettings`. More QA surface.
 **Performance:** none.
-**Game feel:** strong for replayability and group fit; medium build cost.
+**Game feel:** strong for replayability + group fit. Medium build cost.
 
 ---
 
 ## 5. Vocabulary coverage (the "common word rejected" complaint)
 
-Observed rejections of ordinary Swedish: `skådespelare`, `atlet`, `man`. This is
-`../design/0002-word-selection.md` Problem B and is _worse_ than obscure targets, a rejected correct
-guess reads as a bug and breaks trust.
+Observed rejections of ordinary Swedish: `skådespelare`, `atlet`, `man`. This is `../design/0002-word-selection.md` Problem B, and _worse_ than obscure targets, rejected correct guess read as bug, break trust.
 
 ### 5a. Lower the Korp/Kelly gate (preprocessing `stage_4`)
 
-Current: `in_kelly AND korp_freq ≥ 1000`. Kelly is a ~8k pedagogical core that
-omits common domain words.
+Current: `in_kelly AND korp_freq ≥ 1000`. Kelly = ~8k pedagogical core, omit common domain words.
 
-- Drop the hard Kelly requirement, or
+- Drop hard Kelly requirement, or
 - Lower Korp threshold (1000 → 300/500) for non-Kelly words, or
 - Add curated `DOMAIN_VOCAB_EXPANSIONS` (already drafted in `../design/0002-word-selection.md`).
 
-**Pros:** directly fixes rejections of words every adult Swede knows; expands
-what counts as a valid guess; cheap (build-time list edit).
-**Cons:** lowering thresholds admits rarer words with **noisier vectors** —
-a word with a bad vector scores semi-randomly, which is its own feel problem.
-Bigger vocab = marginally larger `vocab.bin` and load.
-**Performance:** build-time; runtime memory grows ~linearly with vocab (currently
-~93k × 300 × 4B ≈ 110 MB; +10k words ≈ +12 MB). Lookups stay O(1).
-**Game feel:** removes the trust-breaking rejections. High priority, low risk if
-you keep a Korp floor (≥50) so only attested words enter.
+**Pros:** direct fix for rejections of words every adult Swede know. Expand valid guesses. Cheap (build-time list edit).
+**Cons:** lower thresholds admit rarer words with **noisier vectors**, bad vector = semi-random score, own feel problem. Bigger vocab = slightly larger `vocab.bin` + load.
+**Performance:** build-time. Runtime memory grow ~linear with vocab (now ~93k × 300 × 4B ≈ 110 MB; +10k words ≈ +12 MB). Lookups stay O(1).
+**Game feel:** remove trust-breaking rejections. High priority, low risk if keep Korp floor (≥50) so only attested words enter.
 
 ### 5b. "Did you mean / close match" on rejection
 
-When a word is rejected, suggest the nearest in-vocab lemma (edit-distance or the
-`LemmaMap`).
+On rejection, suggest nearest in-vocab lemma (edit-distance or `LemmaMap`).
 
-**Pros:** turns a dead-end into a recovery; softens the strictness.
-**Cons:** edit-distance over 93k keys per rejection needs care (prefix index or
-bounded Levenshtein); risk of weird suggestions.
-**Performance:** naive scan is 93k string ops per rejection, acceptable but
-worth a trie/prefix bucket if it's hot.
-**Game feel:** much friendlier failure mode; pairs well with 5a.
+**Pros:** turn dead-end into recovery. Soften strictness.
+**Cons:** edit-distance over 93k keys per rejection need care (prefix index or bounded Levenshtein). Risk weird suggestions.
+**Performance:** naive scan = 93k string ops per rejection, acceptable but worth trie/prefix bucket if hot.
+**Game feel:** much friendlier failure mode. Pair well with 5a.
 
 ### 5c. Rejected-word telemetry → vocabulary loop
 
-We **now log every rejection** (`game.log`: `word rejected (not in dictionary)`).
-Mine it: frequent legit rejectees → add to domain expansions. This is exactly
-`../design/0002-word-selection.md` Problem B Fix 4, and the logging you just built is the data source.
+We **now log every rejection** (`game.log`: `word rejected (not in dictionary)`). Mine it: frequent legit rejectees → add to domain expansions. Exactly `../design/0002-word-selection.md` Problem B Fix 4, and logging you just built = data source.
 
-**Pros:** player-driven, free, self-correcting; no guessing which words to add.
-**Cons:** requires a periodic manual pass over logs; only as good as playtest
-volume.
-**Performance:** offline analysis; zero runtime cost.
+**Pros:** player-driven, free, self-correcting. No guessing which words to add.
+**Cons:** need periodic manual pass over logs. Only as good as playtest volume.
+**Performance:** offline analysis, zero runtime cost.
 **Game feel:** compounding improvement over time. Low effort, do it.
 
 ### 5d. Lemmatisation correctness
 
-`man` rejected suggests a lemma/inflection gap. `../notes/preprocessing-w2v-migration.md` Phase 3 mentions a
-`lemma_overrides.json` for spaCy mistakes.
+`man` rejected → lemma/inflection gap. `../notes/preprocessing-w2v-migration.md` Phase 3 mention `lemma_overrides.json` for spaCy mistakes.
 
-**Pros:** fixes systematic wrong-lemma rejections; small override file.
-**Cons:** manual curation; spaCy Swedish is rule-based and occasionally wrong on
-uncommon forms.
-**Performance:** build-time; none at runtime.
-**Game feel:** removes a class of baffling rejections.
+**Pros:** fix systematic wrong-lemma rejections. Small override file.
+**Cons:** manual curation. spaCy Swedish rule-based, sometimes wrong on uncommon forms.
+**Performance:** build-time, none at runtime.
+**Game feel:** remove class of baffling rejections.
 
 ---
 
@@ -314,32 +231,27 @@ uncommon forms.
 
 ### 6a. Input duration (default 20s)
 
-**Shorter (10–15s):** urgency, faster games, more gut-instinct answers (which
-_helps_ anti-match, less time to converge on the obvious word).
-**Longer (30–45s):** thoughtful, but more hivemind convergence and dead air.
+**Shorter (10–15s):** urgency, faster games, more gut-instinct answers (which _help_ anti-match, less time to converge on obvious word).
+**Longer (30–45s):** thoughtful, but more hivemind convergence + dead air.
 
 **Pros (short):** pace, energy, better mechanic fit.
-**Cons (short):** slower typers/non-natives disadvantaged; more empty
-submissions. **Cons (long):** drags, especially with the `SYNC_DELAY` overhead.
+**Cons (short):** slow typers/non-natives disadvantaged, more empty submissions. **Cons (long):** drag, especially with `SYNC_DELAY` overhead.
 **Performance:** none.
-**Game feel:** large. Lean **short** for anti-match; expose as host setting
-(already is, 10–60s).
+**Game feel:** large. Lean **short** for anti-match. Expose as host setting (already is, 10–60s).
 
 ### 6b. Round count (default 3)
 
-**Pros (more rounds):** scores stabilise, less luck; **fewer:** snappier.
-**Cons:** more rounds = longer session, more chances to hit a weak target.
+**Pros (more rounds):** scores stabilise, less luck. **Fewer:** snappier.
+**Cons:** more rounds = longer session, more chances to hit weak target.
 **Performance:** none.
-**Game feel:** 3–5 is the sweet spot; tie to player count if desired.
+**Game feel:** 3–5 = sweet spot. Tie to player count if wanted.
 
 ### 6c. Phase-end precision
 
-The loop polls a 1s ticker (`antimatch.go` Run), so a round can overrun ~1s, and
-the 2s `SYNC_DELAY` adds fixed overhead. Replacing the poll with a
-`time.Timer` set to exact `endTime` tightens pacing.
+Loop poll 1s ticker (`antimatch.go` Run), so round can overrun ~1s. 2s `SYNC_DELAY` add fixed overhead. Replace poll with `time.Timer` set to exact `endTime` → tighter pacing.
 
-**Pros:** crisper transitions; less perceived lag.
-**Cons:** minor refactor of the run loop.
+**Pros:** crisper transitions, less perceived lag.
+**Cons:** minor refactor of run loop.
 **Performance:** strictly better (no per-second wakeups).
 **Game feel:** subtle but real polish, especially on short rounds.
 
@@ -347,58 +259,39 @@ the 2s `SYNC_DELAY` adds fixed overhead. Replacing the poll with a
 
 ## 7. Score presentation (feel without changing math)
 
-Even with the current formula, **presentation** changes perceived fairness:
+Even with current formula, **presentation** change perceived fairness:
 
-- Show **rank/percentile** ("top 3% closest!") alongside or instead of raw
-  points, leverages `SimAtRank`.
-- Animate the bar filling to the score; reveal duplicates first for drama.
-- Show the **best possible word** at reveal ("closest unique was X") so players
-  learn and feel the target was fair.
+- Show **rank/percentile** ("top 3% closest!") alongside or instead of raw points, leverage `SimAtRank`.
+- Animate bar filling to score. Reveal duplicates first for drama.
+- Show **best possible word** at reveal ("closest unique was X") so players learn + feel target was fair.
 
-**Pros:** cheap, pure client; turns flat numbers into feedback; teaches.
-**Cons:** client work; the "best word" reveal needs a server field.
+**Pros:** cheap, pure client. Turn flat numbers into feedback. Teaches.
+**Cons:** client work. "Best word" reveal need server field.
 **Performance:** negligible.
-**Game feel:** high ratio of feel-improvement to effort. Do alongside §1.
+**Game feel:** high feel-per-effort ratio. Do alongside §1.
 
 ---
 
 ## 8. Impostor-mode notes (secondary)
 
-- **`impostor_candidates`** (stage 9) drives the impostor's hint word.
-  Tightening `IMPOSTOR_POOL_MIN_SIM` (0.35) makes the impostor's word _closer_ to
-  the real one, harder to spot, more tension; loosening makes the impostor more
-  obvious. A balance knob worth a playtest pass.
-- Impostor inherits the same **notability** and **vocab** concerns: an unknown
-  secret word ruins the round for everyone, so §4/§5 benefit both modes.
+- **`impostor_candidates`** (stage 9) drive impostor hint word. Tighten `IMPOSTOR_POOL_MIN_SIM` (0.35) → impostor word _closer_ to real one, harder to spot, more tension. Loosen → impostor more obvious. Balance knob worth playtest pass.
+- Impostor inherit same **notability** + **vocab** concerns: unknown secret word ruin round for everyone, so §4/§5 help both modes.
 
 ---
 
 ## Recommended sequencing
 
-Ordered by impact ÷ effort:
+By impact ÷ effort:
 
-1. **Rescale the score band (§1b)** + **wire `matchThreshold` as the 0-point /
-   zero-beyond-cone (§2a)**, small code change, fixes "punishing/flat" directly.
-2. **Apply the notability floor + Swedish pageviews (§4a)**, preprocessing edit,
-   kills "who is ThyssenKrupp" at the source.
-3. **Lower the vocab gate / domain expansions (§5a)** + **mine rejection logs
-   (§5c)**, fixes trust-breaking rejections; the logging is already in place.
-4. **Score presentation: rank + best-word reveal (§7)**, client polish that
-   multiplies the §1 gains.
-5. **Rank-based scoring via `SimAtRank` interpolation (§1d)**, the "fair"
-   end-state once 1–4 are validated.
-6. Tuning dials (§4b exponent, §6a timers, §3c duplicate softening), live A/B
-   once the structure is right.
+1. **Rescale score band (§1b)** + **wire `matchThreshold` as 0-point / zero-beyond-cone (§2a)**, small code change, fix "punishing/flat" directly.
+2. **Apply notability floor + Swedish pageviews (§4a)**, preprocessing edit, kill "who is ThyssenKrupp" at source.
+3. **Lower vocab gate / domain expansions (§5a)** + **mine rejection logs (§5c)**, fix trust-breaking rejections. Logging already in place.
+4. **Score presentation: rank + best-word reveal (§7)**, client polish, multiply §1 gains.
+5. **Rank-based scoring via `SimAtRank` interpolation (§1d)**, "fair" end-state once 1–4 validated.
+6. Tuning dials (§4b exponent, §6a timers, §3c duplicate softening), live A/B once structure right.
 
-Items 1–3 are roughly a day each and need no model retrain. Item 5 is the
-larger, more principled change to do last.
+Items 1–3 ≈ one day each, no model retrain. Item 5 = larger, more principled change, do last.
 
 ## Cross-cutting performance note
 
-The vocab is ~93k × 300 float32 (~110 MB) held in memory, L2-normalised so
-cosine = dot product. Every option above is either build-time (preprocessing) or
-O(1)–O(players) at runtime, **except** true per-guess full-vocab ranking (§1d
-naive path), which is ~28M FLOPs/guess. At party scale (≤12 players, a handful
-of rounds) even that is sub-10ms, but the `SimAtRank` interpolation avoids it
-entirely. None of these tuning levers threaten server performance; the only real
-cost center is preprocessing wall-time when the model or vocabulary changes.
+Vocab = ~93k × 300 float32 (~110 MB) in memory, L2-normalised so cosine = dot product. Every option above is build-time (preprocessing) or O(1)–O(players) at runtime, **except** true per-guess full-vocab ranking (§1d naive path) at ~28M FLOPs/guess. At party scale (≤12 players, few rounds) even that sub-10ms, but `SimAtRank` interpolation avoid it entirely. No tuning lever here threaten server performance. Only real cost center: preprocessing wall-time when model or vocabulary change.
