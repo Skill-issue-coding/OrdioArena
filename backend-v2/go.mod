@@ -3,7 +3,7 @@
 // declaring the final path now means that rename touches zero import lines.
 module github.com/Skill-issue-coding/OrdioArena/backend
 
-go 1.26.4
+go 1.27
 
 require (
 	github.com/go-chi/chi/v5 v5.3.2

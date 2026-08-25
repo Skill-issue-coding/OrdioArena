@@ -76,6 +76,48 @@ gofmt -l .              # must print nothing
 
 There is nothing to run yet, `cmd/server` is a stub until #50.
 
+## Environment variables
+
+**Local development example:**
+
+_Environment file has to be located at: `backend-v2/internal/config/.env`_
+
+| Variable Name        | Value                                         | Description                                             |
+| -------------------- | --------------------------------------------- | ------------------------------------------------------- |
+| **APP_ENV**          | `dev`                                         | Defined environment of the application                  |
+| INSTANCE_ID          | `local`                                       | Instance id for each instance                           |
+| CLUSTER_PEERS        | `local=ws://localhost:8080`                   | Cluster peers                                           |
+| SESSION_KEYS         | `dev1=<SECRET>`                               | Session key to each cluster/peer                        |
+|  SESSION_KEY_CURRENT | `dev1`                                        | Session key to the current cluster/peer                 |
+| ORIGIN_ALLOW         | `http://localhost:5173,http://localhost:8080` | The allowed origins                                     |
+| LISTEN_PORT          | `:8080`                                       | The active listen port                                  |
+| LOG_LEVEL            | `debug` \| `info`                             | What level of information should be printed _logs, etc_ |
+| LOG_FORMAT           | `text` \| `json`                              | Defines the format of the logging                       |
+
+**Production environment example:**
+
+`docker compose.yaml`
+
+```yaml
+x-shared: &shared
+  APP_ENV: prod
+  CLUSTER_PEERS: <INSTANCE_ID_1>=wss://<URL>/i/<INSTANCE_ID_1>,<INSTANCE_ID_2>=wss://<URL>/i/<INSTANCE_ID_2>,<INSTANCE_ID_3>=wss://<URL>/i/<INSTANCE_ID_3>
+  SESSION_KEYS: <KEY>=<SECRET>
+  SESSION_KEY_CURRENT: <KEY>
+  ORIGIN_ALLOW: <URL>
+  LISTEN_ADDR: "<PORT>"
+  LOG_LEVEL: info
+  LOG_FORMAT: json
+
+services:
+  inst-1:
+    environment: { <<: *shared, INSTANCE_ID: <INSTANCE_ID_1> }
+  inst-2:
+    environment: { <<: *shared, INSTANCE_ID: <INSTANCE_ID_2> }
+  inst-3:
+    environment: { <<: *shared, INSTANCE_ID: <INSTANCE_ID_3> }
+```
+
 ## Conventions
 
 - Package doc comment on every package, stating what it owns and which goroutine owns it.

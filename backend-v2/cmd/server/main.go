@@ -22,12 +22,12 @@ func main() {
 		log.Fatalf("error when starting server, %v", err)
 	}
 
-	lvl, err := logging.ParseLevel(cfg.LogLevel) // config already validated
-	f, err := logging.ParseFormat(cfg.LogFormat)
+	lvl, err := logging.ParseLevel(cfg.LogLevel.String())
+	f, err := logging.ParseFormat(string(cfg.LogFormat))
 	root := logging.New(logging.Options{
 		Level:      lvl,
 		Format:     f,
-		InstanceID: cfg.InstanceID,
+		InstanceID: string(cfg.InstanceID),
 	})
 
 	root.Info("config loaded",

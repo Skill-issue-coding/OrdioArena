@@ -111,6 +111,10 @@ func parseEnv(s string) (Env, error) {
 	}
 }
 
+// parsePeers parses CLUSTER_PEERS into the complete membership list, this
+// instance included. Every instance must derive the same list, since owner()
+// maxes over it and two instances disagreeing route the same code two ways.
+//
 // INPUT: CLUSTER_PEERS=inst-1=wss://ordio.example/i/inst-1,inst-2=wss://ordio.example/i/inst-2
 func parsePeers(raw string, requireTLS bool) ([]cluster.Peer, error) {
 	var (
@@ -258,6 +262,11 @@ func canonicalOrigin(raw string, requireTLS bool) (string, error) {
 	return u.Scheme + "://" + strings.ToLower(u.Host), nil
 }
 
+// canonicalPeerURL validates one peer address and returns it in the form handed
+// to clients as a dial target. Unlike canonicalOrigin it keeps the path, which
+// carries the instance prefix and is the whole point of the addressing scheme.
+//
+// INPUT: one URL from CLUSTER_PEERS, e.g. wss://ordio.example/i/inst-2
 func canonicalPeerURL(raw string, requireTLS bool) (string, error) {
 	u, err := url.Parse(raw)
 	if err != nil {
