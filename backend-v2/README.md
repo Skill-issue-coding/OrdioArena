@@ -80,7 +80,7 @@ There is nothing to run yet, `cmd/server` is a stub until #50.
 
 **Local development example:**
 
-_Environment file has to be located at: `backend-v2/internal/config/.env`_
+_Environment file has to be located at: `backend-v2/.env`_
 
 | Variable Name        | Value                                         | Description                                             |
 | -------------------- | --------------------------------------------- | ------------------------------------------------------- |

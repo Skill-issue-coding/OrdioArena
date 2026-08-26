@@ -195,14 +195,7 @@ the constraint above is still real: do not deploy the current server to more tha
 
 ### Server (`server/`)
 
-Entry point `main.go` (Gin router, port 8080). Routes:
-
-| Method | Path                 | Purpose                                                     |
-| ------ | -------------------- | ----------------------------------------------------------- |
-| `GET`  | `/api/status`        | Health check                                                |
-| `POST` | `/api/game/username` | Generate a random Swedish display name for a connected user |
-| `POST` | `/api/log`           | Batched browser logs → `logs/client.log`                    |
-| `GET`  | `/ws/game`           | WebSocket upgrade; creates a `Client`, registers it in hub  |
+Entry point `main.go` (Gin router, port 8080) declares the routes.
 
 Key types:
 
@@ -229,26 +222,9 @@ re-renders local. Each hook domain is `src/hooks/<domain>/Hook.tsx` plus `types.
 
 ### Preprocessing (`preprocessing/`)
 
-Nine ordered stages producing the Go server's wordfiles. Wikipedia2Vec (`svwiki-w2v-300d`, 300
-dims) trained on Swedish Wikipedia places words and named entities in one vector space, so entity
-vectors come straight from the model and the nearest words per entity seed the vocabulary. General
-vocabulary comes from Korp frequency data + the Kelly list + spaCy POS filtering
-(`NOUN, PROPN, VERB, ADJ`). Stage-to-stage state passes through `intermediate/` (git-ignored).
-
-Data sources: Kelly XML word list, Korp frequency CSVs with stopword filtering, Wikidata SPARQL
-entity seeds, Swedish Wikipedia summaries, and Maktbarometern influencer lists (scraped by the Go
-crawler at `preprocessing/seeding/maktbarometern/colly-crawler/`).
-
-Output consumed by the Go backend:
-
-| File                              | Contents                                                                                            |
-| --------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `server/wordfiles/vocab.bin`      | Raw float32 vectors, little-endian (no CSV parsing at startup)                                      |
-| `server/wordfiles/vocab.json`     | Word list, index-aligned with `vocab.bin`                                                           |
-| `server/wordfiles/meta.json`      | `{n, dims}`                                                                                         |
-| `server/wordfiles/targets.json`   | Curated targets with `notability_score`, `sim_at_rank`, `antihive_threshold`, `impostor_candidates` |
-| `server/wordfiles/lemma_map.json` | Surface form → canonical lemma ("bilar" → "bil")                                                    |
-| `server/wordfiles/sources.json`   | Provenance per word                                                                                 |
+Nine ordered stages producing the Go server's wordfiles, which the server **fails to start**
+without. See `preprocessing/CLAUDE.md` for the pipeline, data sources and output contract, and
+`preprocessing/README.md` for the stage-by-stage detail.
 
 ## Game modes
 
@@ -256,25 +232,8 @@ All four are Swedish word modes scored by cosine distance over the same vectors.
 3–12 players (`MIN_NUM_PLAYERS_TO_START_GAME`, `MAXIMUM_LOBBY_SIZE`). Full settings tables with
 min/max ranges are in `server/README.md`.
 
-**Hitta Impostern (`impostor`)**, implemented. Normal players get a secret word; impostors get a
-semantically similar but different word drawn from that target's `impostor_candidates`. Phase
-chain: show_word (8 s) → input (turn-based, one player at a time) → discussion → vote →
-intermediate (5 s) → loop or result. Players vote someone out each cycle; impostors win when
-`impostors >= normals`, normals win when all impostors are gone. Settings: impostor count 1–4,
-input 10–60 s (default 30), discussion 30–150 s (default 45), vote 10–60 s (default 30).
-
-**Anti-matchning (`anti_match`)**, implemented. Every player submits a word related to the target.
-Exact duplicates all score 0. Unique words score `max(0, 100 − cosine_distance × 100)`. A new
-target is picked each round; the round ends early once everyone has submitted. Settings: input
-10–60 s (default 20), rounds 1–5 (default 3).
-
-**Kontext Strid (`contexto_battle`)**, settings only, `Run` not implemented. Competitive Contexto:
-players guess continuously to approach a hidden target; closest last guess when the timer expires
-wins the round. Settings: word type (Vanliga/Kreativa), round 60–600 s, rounds 1–5.
-
-**Synonym Duell (`synonym_duel`)**, settings only, `Run` not implemented. Each round everyone
-submits a synonym for the target; the submission semantically _furthest_ from it is eliminated.
-Last player standing wins. Settings: word type (Vanliga/Kreativa), round 10–60 s, rounds 1–5.
+`impostor` and `anti_match` are implemented. `contexto_battle` and `synonym_duel` have settings
+only, `Run` is not implemented, and they land in S10 after the mode registry (see invariant 4).
 
 ## NLP and language constraints
 

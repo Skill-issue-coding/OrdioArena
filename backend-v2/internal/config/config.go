@@ -25,7 +25,7 @@ const (
 	VarSessionKeys       = "SESSION_KEYS"
 	VarSessionKeyCurrent = "SESSION_KEY_CURRENT"
 	VarOriginAllow       = "ORIGIN_ALLOW"
-	VarListenPort        = "LISTEN_PORT"
+	VarListenAddr        = "LISTEN_ADDR"
 	VarLogLevel          = "LOG_LEVEL"
 	VarLogFormat         = "LOG_FORMAT"
 )
@@ -38,7 +38,7 @@ var allVars = []string{
 	VarSessionKeys,
 	VarSessionKeyCurrent,
 	VarOriginAllow,
-	VarListenPort,
+	VarListenAddr,
 	VarLogLevel,
 	VarLogFormat,
 }
@@ -150,9 +150,9 @@ func loadFrom(get lookup) (Config, Source, error) {
 
 	// Listen address. Never environment-dependent: the bind address is the same
 	// in a container as it is locally, only the address it is reached at differs.
-	cfg.ListenAddr = l.optional(VarListenPort, defaultListenAddr)
+	cfg.ListenAddr = l.optional(VarListenAddr, defaultListenAddr)
 	if err := validateListenAddr(cfg.ListenAddr); err != nil {
-		l.absorb(VarListenPort, err)
+		l.absorb(VarListenAddr, err)
 	}
 
 	// Logging. Parsed here so logging.New stays infallible.

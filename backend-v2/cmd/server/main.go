@@ -22,15 +22,19 @@ func main() {
 		log.Fatalf("error when starting server, %v", err)
 	}
 
-	lvl, err := logging.ParseLevel(cfg.LogLevel.String())
-	f, err := logging.ParseFormat(string(cfg.LogFormat))
+	// Level and Format arrive already typed: config parsed and validated them
+	// during Load, which is exactly what lets logging.New have no error return.
+	// Re-parsing them here would be a round trip through their own strings.
 	root := logging.New(logging.Options{
-		Level:      lvl,
-		Format:     f,
+		Level:      cfg.LogLevel,
+		Format:     cfg.LogFormat,
 		InstanceID: string(cfg.InstanceID),
 	})
 
-	root.Info("config loaded",
+	// Provenance is logged here rather than inside config, because Load runs
+	// before this logger exists: the level and format it was built with are
+	// themselves part of what Load returned.
+	logging.WithDomain(root, logging.DomainConfig).Info("config loaded",
 		logging.KeyConfigSource, src.File,
 		logging.KeyConfigKeys, src.FileKeys)
 
