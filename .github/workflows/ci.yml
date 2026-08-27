@@ -19,8 +19,8 @@ jobs:
       run:
         working-directory: backend-v2
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: backend-v2/go.mod
           cache-dependency-path: backend-v2/go.sum
@@ -36,6 +36,7 @@ jobs:
         with:
           working-directory: backend-v2
           version: v2.5.0 # pin: an unpinned release turns main red on an unrelated PR
+          install-mode: goinstall
 
   smoke:
     runs-on: ubuntu-latest
