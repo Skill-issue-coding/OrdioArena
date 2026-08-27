@@ -6,3 +6,5 @@ type Peer struct {
 	ID    PeerID
 	WSURL string // public, client-reachable; validated by config
 }
+
+func (pId PeerID) String() string { return string(pId) }

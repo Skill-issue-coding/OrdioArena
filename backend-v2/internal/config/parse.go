@@ -53,7 +53,7 @@ func parseKeyset(rawKeys, rawCurrent string) (token.Keyset, error) {
 			continue
 		}
 		if strings.Contains(id, ".") {
-			problems = append(problems, fmt.Sprintf(`key id %q must not contain "." — the token format is v1.<key-id>.<claims>.<signature>`, id))
+			problems = append(problems, fmt.Sprintf(`key id %q must not contain ".", the token format is v1.<key-id>.<claims>.<signature>`, id))
 			continue
 		}
 		if !identRe.MatchString(id) {

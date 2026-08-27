@@ -9,6 +9,8 @@ import (
 	"os"
 	"path"
 	"strings"
+
+	"github.com/Skill-issue-coding/OrdioArena/backend/internal/cluster"
 )
 
 // Format selects the handler. Text is for a human reading a terminal; JSON is
@@ -55,7 +57,7 @@ type Options struct {
 	Writer     io.Writer // nil means os.Stdout
 	Level      slog.Level
 	Format     Format // empty means FormatJSON
-	InstanceID string
+	InstanceID cluster.PeerID
 }
 
 // New builds the root logger. Call it once, in main, and inject the result.
@@ -132,6 +134,11 @@ const (
 	KeyDropped   = "dropped"
 	KeyReason    = "reason"
 	KeyDuration  = "duration"
+	KeyError     = "error"
+	KeyRequestID = "request_id"
+	KeyMethod    = "method"
+	KeyPath      = "path"
+	KeyStatus    = "status"
 
 	// KeySecretFP carries the output of Fingerprint, never a secret itself.
 	KeySecretFP = "secret_fingerprint"
