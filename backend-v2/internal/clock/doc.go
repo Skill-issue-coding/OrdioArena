@@ -1,18 +1,22 @@
-// Package clock is the only source of time in the backend.
+// Package clock is the sole source of time in the backend.
 //
-// Every deadline, timer and timestamp goes through a Clock rather than the time
-// package directly. This exists from the first commit because phase deadlines
-// arrive in S6: with timers reaching time.After, every phase test becomes a
-// time.Sleep, and the suite is slow and flaky for the life of the project.
+// All time operations use a Clock interface to avoid slow, flaky tests
+// involving time.Sleep. The real Clock wraps the time package. The fake Clock
+// manages a virtual time and pending timers, allowing instant, deterministic
+// time advancement in tests. It is safe for concurrent use.
 //
-// The real implementation wraps time. The fake holds a virtual now plus a heap
-// of pending timers, and Advance fires everything due in order, so a test can
-// step an hour instantly and deterministically. The fake must be safe to call
-// from a test goroutine while the code under test runs, since that is exactly
-// how a phase test works.
+// Clocks are injected as dependencies, never as package globals, to support
+// parallel testing.
 //
-// A Clock is injected through the dependency struct. Never a package global: a
-// global clock cannot differ between two parallel tests.
+// Test guidelines for Advance:
+//   - Step incrementally (e.g., Advance(8s) then Advance(30s)). Jumping too far
+//     might skip timers registered by subsequent handlers.
+//   - Advance only synchronizes receipt, not handler completion. Assert on
+//     delivery, not on state set by handlers after receipt.
 //
-// Scaffold only. See docs/design/S0-skeleton-tooling-ci.md, issue #51.
+// Advance panics on unreceived timers to prevent deadlocks. Use AdvanceNoWait
+// to observe mid-flight states. Fake is included in standard builds for cross-
+// package testing but must never be used in production.
+//
+// See docs/design/S0-skeleton-tooling-ci.md, issue #51.
 package clock
