@@ -1,0 +1,23 @@
+:8080 {
+	# Per-instance addressing. CLUSTER_PEERS entries are
+	# ws://localhost:8080/i/inst-N, so the prefix has to reach that one instance
+	# and be stripped before the backend sees the path. handle_path strips it.
+	# S2 #63 is what starts using these; the routes exist now so the peer list
+	# in docker-compose.yml describes something real.
+	handle_path /i/inst-1/* {
+		reverse_proxy inst-1:8080
+	}
+	handle_path /i/inst-2/* {
+		reverse_proxy inst-2:8080
+	}
+	handle_path /i/inst-3/* {
+		reverse_proxy inst-3:8080
+	}
+
+	# Everything else load-balances across all three. A client that does not yet
+	# know which instance owns its lobby may land anywhere; S2's route lookup is
+	# what sends it to the owner afterwards.
+	handle {
+		reverse_proxy inst-1:8080 inst-2:8080 inst-3:8080
+	}
+}

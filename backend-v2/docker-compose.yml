@@ -1,0 +1,78 @@
+name: ordioarena
+
+# APP_ENV is dev, not prod, and that is deliberate. Production validation demands
+# wss:// peer URLs and https origins, neither of which exists in front of a local
+# proxy without certificates. Every variable is still set explicitly, so nothing
+# reaches a default: the point of running three instances is to catch exactly the
+# configuration mistakes that silent defaulting hides.
+x-env: &env
+  APP_ENV: dev
+  CLUSTER_PEERS: "inst-1=ws://localhost:8080/i/inst-1,inst-2=ws://localhost:8080/i/inst-2,inst-3=ws://localhost:8080/i/inst-3"
+  # One keyset shared by every instance. Per-instance keys would hand reconnecting
+  # players new identities in S3, which presents as "reconnect is broken" rather
+  # than "configuration is wrong".
+  #
+  # Development value only. The key id says so deliberately: it travels inside every
+  # token, so a dev key that reached production would be visible at a glance instead
+  # of indistinguishable from a real one. A production compose file names the
+  # variable and never holds it:
+  #   SESSION_KEYS: ${SESSION_KEYS:?set SESSION_KEYS in the deploy environment}
+  SESSION_KEYS: "dev-local-not-a-secret=kJ8vQ2mR7tZxA1cB4nD6pL9sE3wY0uH5iO2gT8fV1aX"
+  SESSION_KEY_CURRENT: dev-local-not-a-secret
+  ORIGIN_ALLOW: "http://localhost:5173,http://localhost:8080"
+  LISTEN_ADDR: ":8080"
+  LOG_LEVEL: info
+  LOG_FORMAT: json
+
+x-backend: &backend
+  build:
+    context: .
+    dockerfile: Dockerfile
+  # Liveness is GET /api/status, the same endpoint the proxy and any future
+  # orchestrator poll. 127.0.0.1 keeps the check inside the container rather than
+  # accidentally testing the network.
+  healthcheck:
+    test:
+      ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/api/status"]
+    interval: 5s
+    timeout: 2s
+    retries: 5
+    start_period: 2s
+  restart: unless-stopped
+
+services:
+  inst-1:
+    <<: *backend
+    environment:
+      <<: *env
+      INSTANCE_ID: inst-1
+
+  inst-2:
+    <<: *backend
+    environment:
+      <<: *env
+      INSTANCE_ID: inst-2
+
+  inst-3:
+    <<: *backend
+    environment:
+      <<: *env
+      INSTANCE_ID: inst-3
+
+  proxy:
+    image: caddy:2-alpine
+    # Loopback only. "8080:8080" publishes on 0.0.0.0, which puts the dev stack on
+    # whatever network the machine happens to be attached to.
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    # Waiting for healthy, not just started, means a failed boot shows up as a
+    # stuck compose up rather than a proxy returning 502 to the first request.
+    depends_on:
+      inst-1:
+        condition: service_healthy
+      inst-2:
+        condition: service_healthy
+      inst-3:
+        condition: service_healthy

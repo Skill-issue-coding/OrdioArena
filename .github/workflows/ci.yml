@@ -1,0 +1,52 @@
+---
+name: CI
+"on":
+  pull_request: null
+  push:
+    branches: [main, full-rework]
+
+# The default token is read-write. Nothing here writes.
+permissions:
+  contents: read
+# Pushing twice cancels the first run instead of paying for both.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend-v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend-v2/go.mod
+          cache-dependency-path: backend-v2/go.sum
+
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test -race ./...
+
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          working-directory: backend-v2
+          version: v2.5.0 # pin: an unpinned release turns main red on an unrelated PR
+
+  smoke:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend-v2
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up -d --build --wait
+      - run: curl -fsS localhost:8080/api/status
+      - if: always()
+        run: docker compose logs
+      - if: always()
+        run: docker compose down

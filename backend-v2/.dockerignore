@@ -1,0 +1,5 @@
+.env
+logs/
+Dockerfile
+docker-compose.yml
+Caddyfile
