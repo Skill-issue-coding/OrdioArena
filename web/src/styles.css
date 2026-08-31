@@ -133,6 +133,7 @@ code {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -163,13 +164,10 @@ code {
 
 /* Golden border accent */
 .border-gold-accent {
-  border-image: linear-gradient(
-      135deg,
+  border-image: linear-gradient(135deg,
       oklch(0.72 0.12 85),
       oklch(0.65 0.14 55),
-      oklch(0.72 0.12 85)
-    )
-    1;
+      oklch(0.72 0.12 85)) 1;
 }
 
 /* Copper glow effect */
