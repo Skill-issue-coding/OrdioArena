@@ -1,13 +1,1 @@
-# golangci-lint's released binaries are built with an older Go than this module
-# targets, and it refuses to lint a language version newer than its own build:
-#
-#   can't load config: the Go language version (go1.25) used to build
-#   golangci-lint is lower than the targeted Go version (1.27)
-#
-# Declaring the language version here rather than inheriting go.mod's 1.27 is
-# what makes the released binary usable. Raise it once a release built with 1.27
-# ships; the pin exists only for that gap, not as a statement about the code.
 version: "2"
-
-run:
-  go: "1.26"

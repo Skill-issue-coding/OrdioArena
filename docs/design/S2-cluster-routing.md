@@ -62,7 +62,7 @@ Each instance needs distinct publicly reachable WebSocket address, because _clie
 Path prefixes simpler than per-instance DNS for self-hosted:
 
 ```text
-PUBLIC_WS_URL = wss://ordio.example/i/inst-2
+CLUSTER_PEERS entry for inst-2 = wss://ordio.example/i/inst-2
 proxy strips /i/inst-2  →  inst-2:8080
 ```
 

@@ -1,4 +1,4 @@
-> **Status:** Started · **Tracking:** milestone S0, issues [#50–#54](https://github.com/Skill-issue-coding/OrdioArena/milestone/5) · **Updated:** 2026-08-24
+> **Status:** Started · **Tracking:** milestone S0, issues [#50–#54](https://github.com/Skill-issue-coding/OrdioArena/milestone/5) · **Updated:** 2026-08-28
 >
 > Stage spec: what get built, why shaped that way. Done-or-not answered by milestone.
 > Architecture rationale: [0003-rewrite-architecture.md](0003-rewrite-architecture.md).
@@ -162,8 +162,8 @@ catch them.
 Multi-stage Dockerfile, non-root user, minimal runtime base. `wordfiles/` mounted, not baked, so
 image not carry Git LFS blob.
 
-`docker-compose.yml` bring up three instances behind one proxy. Each get own `INSTANCE_ID` and
-`PUBLIC_WS_URL`; all three share one `SESSION_SECRET`.
+`docker-compose.yml` bring up three instances behind one proxy. Each get own `INSTANCE_ID`; all
+three share one `SESSION_KEYS` and `SESSION_KEY_CURRENT`, and one identical `CLUSTER_PEERS`.
 
 ## Decisions taken in this stage
 
@@ -175,6 +175,12 @@ image not carry Git LFS blob.
 | `Clock` injected, never global          | Parallel tests need independent clocks                   |
 | Config immutable after `Load`           | Cluster with drifting config undebuggable                |
 | Three instances in local compose        | Cluster bugs must repro before S2 write cluster code     |
+| Caddy as the compose proxy              | `handle_path` strips `/i/inst-N` in three lines          |
+| Alpine runtime, not distroless          | Compose healthcheck needs an HTTP client in the image    |
+| `APP_ENV=dev` in compose                | Prod demand `wss://` and `https` origins, no local certs |
+| Proxy bound to `127.0.0.1`              | `8080:8080` publish the dev stack to the whole LAN       |
+| `run() error` with thin `main`          | `os.Exit` skip defers; one exit point, real exit status  |
+| `net.Listen` before `Serve`             | Bind failure surface synchronously, not inside goroutine |
 
 ## Issues
 
@@ -188,11 +194,18 @@ image not carry Git LFS blob.
 
 ## Open questions
 
-- **Which proxy in compose?** Caddy give automatic TLS and two-line config; Traefik match likely
-  production setup closer. Whatever chosen here should be what S8 deploy, so local stack not fiction.
-- **Runtime base image.** Distroless smaller, no shell; Alpine debuggable in place. Distroless unless
-  someone want to `exec` into running instance.
-- **Go version floor.** Old module pin `go 1.25.0`. Design need nothing newer.
+- ~~**Which proxy in compose?**~~ Caddy. `handle_path` strip the `/i/inst-N` prefix in three lines,
+  which is the addressing scheme S2 need. S8 deploy the same thing, so the local stack is not fiction.
+- ~~**Runtime base image.**~~ Alpine. Distroless is smaller and has no shell, but also no HTTP client,
+  so the compose healthcheck would have to move into the server binary as a subcommand, which put
+  logic in `main`. Revisit if image size ever matter.
+- ~~**Go version floor.**~~ `go 1.27`. Note the cost: golangci-lint's released binaries are built with
+  an older Go and refuse to lint a newer target, so `.golangci.yml` pin the language version until a
+  release catch up. Expect this on every toolchain bump.
+- **Container builds report `revision: "unknown"`.** Build context is `backend-v2/`, not the repo
+  root, because the root carry the ~3-4 GB Wikipedia2Vec model and the LFS wordfiles. No `.git` in
+  the context means the toolchain stamp nothing. Fix when wanted: a package var in `httpx` set by
+  `-ldflags -X` from a `VCS_REF` build arg.
 - **Config's own logging.** `config.Load` run before logger exist, since level and format come from
   config. So it return provenance as data and let `main` log it, instead of taking bootstrap logger.
   See note in `internal/config`.

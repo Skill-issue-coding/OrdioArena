@@ -615,8 +615,8 @@ func clearAmbientEnv(t *testing.T) {
 	t.Helper()
 	for _, name := range allVars {
 		if old, ok := os.LookupEnv(name); ok {
-			t.Setenv(name, old) // registers the restore
-			os.Unsetenv(name)   // ...then actually clear it
+			t.Setenv(name, old)   // registers the restore
+			_ = os.Unsetenv(name) // ...then actually clear it
 		}
 	}
 }

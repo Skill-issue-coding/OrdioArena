@@ -79,7 +79,7 @@ brand-new identities, which presents as "reconnect is broken" rather than "confi
 
 Silent misconfiguration is the dangerous failure, so it is made loud:
 
-- `SESSION_SECRET` required, minimum length enforced.
+- `SESSION_KEYS` and `SESSION_KEY_CURRENT` required, minimum length enforced per key.
 - The server **refuses to start** on a missing, empty or placeholder secret. No generate-at-boot
   fallback, it would appear to work on one instance and break on N, which is the worst of both.
 - A short fingerprint of the secret (a hash, never the value) is logged at boot, so a mismatched

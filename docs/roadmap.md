@@ -70,8 +70,9 @@ buys reconnect and scale free in every later stage.
 
 **Goal:** N instances, deterministic lobby ownership, zero shared state.
 
-- Rendezvous (HRW) hashing over static peer list from env: `INSTANCE_ID`, `PUBLIC_WS_URL`,
-  `CLUSTER_PEERS`.
+- Rendezvous (HRW) hashing over static peer list from env: `INSTANCE_ID`, `CLUSTER_PEERS`.
+  `PUBLIC_WS_URL` was dropped: the peer list already includes this instance, so `cfg.Self()`
+  derives it and a second variable could only disagree.
 - `Cluster` interface (`Self`, `Owns`, `RouteTo`), peer discovery swappable later, nothing else
   touched.
 - `POST /api/lobby`, generates code by rejection sampling until it hashes to creating instance,
@@ -94,8 +95,10 @@ misroute gives error screen, never second empty room.
 
 - HMAC-SHA256 over `{player_id, lobby_code, issued_at, expires_at}`, key id included so signing key
   rotates without invalidating live sessions.
-- Shared `SESSION_SECRET` across every instance. Per-instance secrets would hand reconnecting
-  players new identities.
+- Shared `SESSION_KEYS` across every instance, with `SESSION_KEY_CURRENT` naming the signing key
+  and the rest still verifying. A single `SESSION_SECRET` was replaced by a keyset so the signing
+  key rotates without invalidating live sessions. Per-instance keys would hand reconnecting players
+  new identities.
 - Constant-time verification, expiry check, clock-skew tolerance.
 - Tests: tampered payload, expired token, wrong secret, token minted on one instance verifying on
   another.

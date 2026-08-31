@@ -32,13 +32,14 @@ jobs:
       - run: go vet ./...
       - run: go test -race ./...
 
-      # install-mode defaults to binary. Building from source with goinstall was
-      # tried and also failed; the language version is pinned in
-      # backend-v2/.golangci.yml instead.
-      - uses: golangci/golangci-lint-action@v8
+      # golangci-lint refuses to lint a language version newer than the Go it was
+      # itself built with, so the release has to keep pace with go.mod. v2.13.2's
+      # binary is built with go1.27, which is why .golangci.yml needs no `run.go`
+      # pin. A toolchain bump here means bumping this version, not pinning around it.
+      - uses: golangci/golangci-lint-action@v9
         with:
           working-directory: backend-v2
-          version: v2.5.0 # pin: an unpinned release turns main red on an unrelated PR
+          version: v2.13.2 # pin: an unpinned release turns main red on an unrelated PR
 
   smoke:
     runs-on: ubuntu-latest

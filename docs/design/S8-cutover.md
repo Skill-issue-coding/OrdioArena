@@ -58,7 +58,7 @@ Several current doc statements go actively wrong at cutover. Biggest: single-ins
 ## Deployment
 
 - Reverse proxy in front, TLS, each instance reachable at own public address for per-lobby WebSocket URL.
-- Shared `SESSION_SECRET`; per-instance `INSTANCE_ID` and `PUBLIC_WS_URL`; identical `CLUSTER_PEERS` everywhere.
+- Shared `SESSION_KEYS` and `SESSION_KEY_CURRENT`; per-instance `INSTANCE_ID`; identical `CLUSTER_PEERS` everywhere.
 - Origin allowlist set to real frontend origin.
 - Check secret fingerprint across instances. Three instances that disagree = three different notions of who each player is.
 

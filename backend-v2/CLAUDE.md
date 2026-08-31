@@ -90,10 +90,13 @@ taught. Leave a `// S2 #61:` comment where the seam goes and stop there.
 | `internal/cluster` | `PeerID` and `Peer` only. They exist ahead of S2 because `config` parses the peer list.                                                                                                                 |
 | `internal/token`   | `Key` and `Keyset` only. Same reason: `config` parses `SESSION_KEYS`.                                                                                                                                   |
 | everything else    | `doc.go` only, the package's contract, no behaviour.                                                                                                                                                    |
+| containers         | `Dockerfile` (multi-stage, static binary, non-root), `Caddyfile`, `docker-compose.yml`. Three instances behind Caddy, healthchecked on `/api/status`, proxy bound to `127.0.0.1`.                       |
+| CI                 | `.github/workflows/ci.yml`. `gofmt`, build, vet, `test -race`, golangci-lint, plus a smoke job that runs the compose stack.                                                                             |
 
-S0 is not closed. Still missing: tests in `httpx`, a Dockerfile and a compose file running three
-instances behind a proxy, CI (#53), and the `web/` scaffold. The compose file is the exit criterion,
-and it is also the first thing that runs `CLUSTER_PEERS` with three real instance ids.
+S0 is not closed. Still missing: tests in `httpx` (#50) and a `web` job in CI once `web/` is
+committed (#52). golangci-lint refuses to lint a language version newer than the Go it was itself
+built with, so the release pinned in `ci.yml` has to keep pace with `go.mod`; expect to bump it on
+every toolchain bump.
 
 Those `doc.go` files are not placeholders. Each states what the package owns and which goroutine owns
 it, and that statement is the contract the stage fills in. **Read the `doc.go` of a package before

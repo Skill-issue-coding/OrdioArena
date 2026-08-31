@@ -114,7 +114,8 @@ type Cluster interface {
 }
 ```
 
-v1 impl: static peer list from env (`INSTANCE_ID`, `PUBLIC_WS_URL`, `CLUSTER_PEERS`). Swap in DNS-SRV
+v1 impl: static peer list from env (`INSTANCE_ID`, `CLUSTER_PEERS`; the list includes this instance,
+so `cfg.Self()` derives its own URL and `PUBLIC_WS_URL` does not exist). Swap in DNS-SRV
 discovery, Fly.io `fly-replay` variant, or Kubernetes headless service later = one impl of this
 interface, zero changes elsewhere.
 
@@ -134,7 +135,7 @@ Opaque, server-signed blob. HMAC-SHA256 over `{player_id, lobby_code, issued_at,
 key id so signing key rotate without invalidating live sessions.
 
 **Token carry no instance identity.** No peer id, no shard hint, no host. Token minted by `inst-1`
-verify on `inst-3` because every instance hold same `SESSION_SECRET`. That keep future topology
+verify on `inst-3` because every instance hold same `SESSION_KEYS`. That keep future topology
 changes from becoming token-format migrations. Per-instance secrets would silently hand reconnecting
 players brand-new identities.
 

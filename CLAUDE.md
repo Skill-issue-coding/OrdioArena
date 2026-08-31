@@ -281,8 +281,12 @@ formatting, moving a block, a config value).
 - Working branch is `full-rework`. Main branch is `main`.
 - The rewrite builds in **new directories** (`backend-v2/`, `web/`) beside the current ones. The old
   `server/` and `frontend/` stay in place and readable until the S8 cutover deletes them.
-- `backend-v2/` currently holds the S0 scaffold: package layout and doc comments, no behaviour.
-  Its `go.mod` declares the _post-cutover_ module path
+- `backend-v2/` builds and runs: `config`, `logging`, `clock` and `httpx` are implemented, `GET
+  /api/status` serves, and `docker compose up` brings three instances up behind Caddy. The packages
+  for later stages are still `doc.go` only. `web/` is scaffolded but not yet committed or in CI.
+  Whether S0 is closed is
+  answered by its milestone, never by this file.
+- `backend-v2/go.mod` declares the _post-cutover_ module path
   (`github.com/Skill-issue-coding/OrdioArena/backend`) so the S8 rename touches no imports.
 - At cutover `server/` disappears, which moves `server/wordfiles/` to `backend/wordfiles/` and
   changes three hardcoded paths in `preprocessing/`. That is the rewrite's only Python footprint.
